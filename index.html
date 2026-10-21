@@ -35,7 +35,7 @@
   </head>
   <body>
     <header>
-      <h1>♪ プロセカ 譜面ビューア <small style="font-size:11px;color:#74829f;font-weight:500">v3.5 / ガイド表示分離・ロング8分コンボ対応</small></h1>
+      <h1>♪ プロセカ 譜面ビューア <small style="font-size:11px;color:#74829f;font-weight:500">v4.0 / 速度イベント表示・透明度設定</small></h1>
       <span id="st">楽曲データ取得中…</span>
     </header>
     <main>
@@ -96,6 +96,10 @@
             <option>12</option>
             <option>16</option>
           </select>
+          <div class="mut" style="margin-top:10px">スライドノーツの透明度：<b id="slv">34%</b></div>
+          <input id="slOpacity" type="range" min="0" max="100" step="1" value="34" />
+          <div class="mut" style="margin-top:6px">ガイドノーツの透明度：<b id="gdv">12%</b></div>
+          <input id="gdOpacity" type="range" min="0" max="100" step="1" value="12" />
           <div class="mut" style="margin-top:10px">
             拡大表示（別タブ）：全体を、上の「1列あたりの小節数」で区切った列を横に並べ、「拡大」の倍率で表示（タブ内の倍率スライダーでも拡縮できます）
           </div>
@@ -161,44 +165,87 @@
       }
       function parseSUS(text){
         text=stripBOM(text);
-        const bpmDef=new Map(),ev=[],raw=[],meta={},warnings=[];
-        let lineNo=0,unhandled=0,seq=0;
+        const bpmDef=new Map(),tilDefs=new Map(),ev=[],raw=[],meta={},warnings=[];
+        const usedHiSpeedIds=new Set(),usedMeasureSpeedIds=new Set();
+        let ticksPerBeat=480,activeHiSpeedId=null,lineNo=0,unhandled=0,seq=0;
+        const registerHiSpeedData=()=>{if(activeHiSpeedId!==null)usedHiSpeedIds.add(activeHiSpeedId)};
         for(const l0 of text.split(/\r?\n/)){
           lineNo++;const l=l0.trim();if(!l||l[0]!=='#')continue;
+          if(/^#NOSPEED$/i.test(l)){meta.NOSPEED='';activeHiSpeedId=null;continue}
           let m=l.match(/^#([A-Za-z0-9_]+)\s+(.*)$/);
-          if(m){meta[m[1].toUpperCase()]=m[2].replace(/^\"|\"$/g,'');continue}
+          if(m){
+            const key=m[1].toUpperCase(),value=m[2].replace(/^\"|\"$/g,'').trim();meta[key]=value;
+            if(key==='REQUEST'){
+              const q=value.match(/ticks_per_beat\s+(\d+)/i);if(q&&+q[1]>0)ticksPerBeat=+q[1];
+            }else if(key==='HISPEED'){
+              const id=b36(value);if(id>=0)activeHiSpeedId=id
+            }else if(key==='MEASUREHS'){
+              const id=b36(value);if(id>=0)usedMeasureSpeedIds.add(id);
+            }
+            continue;
+          }
           m=l.match(/^#([A-Za-z0-9_]+):\s*(.*)$/);if(!m)continue;
           const h=m[1],d=m[2];let x,base;
           if((x=h.match(/^(\d{3})02$/))){
             const len=Number(d);if(Number.isFinite(len)&&len>0)ev.push({bar:+x[1],len});else warnings.push(`行${lineNo}: 小節長が不正です`);
           }else if((x=h.match(/^BPM([0-9A-Z]{2})$/i))){
             const bpm=Number(d),id=b36(x[1][0])*36+b36(x[1][1]);if(Number.isFinite(bpm)&&bpm>0)bpmDef.set(id,bpm);else warnings.push(`行${lineNo}: BPM定義が不正です`);
+          }else if((x=h.match(/^TIL([0-9A-Z]{2})$/i))){
+            const id=b36(x[1][0])*36+b36(x[1][1]),def=[];
+            const value=d.replace(/^\"|\"$/g,'');
+            for(const token of value.split(',')){
+              const q=token.trim().match(/^(\d+)\s*['.]\s*(\d+)\s*:\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+              if(!q){if(token.trim())warnings.push(`行${lineNo}: TIL定義「${token.trim()}」を解析できません`);continue}
+              const measure=+q[1],tick=+q[2],speed=Number(q[3]);
+              if(Number.isFinite(speed))def.push({measure,tick,speed});
+            }
+            tilDefs.set(id,def);
           }else if((x=h.match(/^(\d{3})08$/))){
             scorePairs(d,+x[1],warnings,lineNo).forEach(p=>ev.push({bar:p.bar,bpmId:b36(p.v[0])*36+b36(p.v[1])}));
           }else if((x=h.match(/^(\d{3})1([0-9A-Z])$/i))){
-            base={k:'tap',lane:b36(x[2]),ch:null,deco:false};
-            scorePairs(d,+x[1],warnings,lineNo).forEach(p=>raw.push({...base,bar:p.bar,bk:p.bk,w:p.w,t:p.t,seq:seq++,lineNo}));
+            base={k:'tap',lane:b36(x[2]),ch:null,deco:false};const pairs=scorePairs(d,+x[1],warnings,lineNo);if(pairs.length)registerHiSpeedData();
+            pairs.forEach(p=>raw.push({...base,bar:p.bar,bk:p.bk,w:p.w,t:p.t,seq:seq++,lineNo}));
           }else if((x=h.match(/^(\d{3})5([0-9A-Z])$/i))){
-            base={k:'dir',lane:b36(x[2]),ch:null,deco:false};
-            scorePairs(d,+x[1],warnings,lineNo).forEach(p=>raw.push({...base,bar:p.bar,bk:p.bk,w:p.w,t:p.t,seq:seq++,lineNo}));
+            base={k:'dir',lane:b36(x[2]),ch:null,deco:false};const pairs=scorePairs(d,+x[1],warnings,lineNo);if(pairs.length)registerHiSpeedData();
+            pairs.forEach(p=>raw.push({...base,bar:p.bar,bk:p.bk,w:p.w,t:p.t,seq:seq++,lineNo}));
           }else if((x=h.match(/^(\d{3})3([0-9A-Z])([0-9A-Z])$/i))||(x=h.match(/^(\d{3})9([0-9A-Z])([0-9A-Z])$/i))){
-            const deco=h.charAt(3)==='9';base={k:'sl',lane:b36(x[2]),ch:b36(x[3]),deco};
-            scorePairs(d,+x[1],warnings,lineNo).forEach(p=>raw.push({...base,bar:p.bar,bk:p.bk,w:p.w,t:p.t,seq:seq++,lineNo}));
-          }else if(/^TIL[0-9A-Z]{2}$/i.test(h)||/^ATR[0-9A-Z]{2}$/i.test(h)||/^(ATTRIBUTE|NOATTRIBUTE|HISPEED|NOSPEED|MEASUREHS)$/i.test(h)){
-            /* 表示位置を変えない属性行。現在のビューアでは描画対象外。 */
-          }else if(/^\d{3}/.test(h)||/^BPM/i.test(h)){
+            const deco=h.charAt(3)==='9';base={k:'sl',lane:b36(x[2]),ch:b36(x[3]),deco};const pairs=scorePairs(d,+x[1],warnings,lineNo);if(pairs.length)registerHiSpeedData();
+            pairs.forEach(p=>raw.push({...base,bar:p.bar,bk:p.bk,w:p.w,t:p.t,seq:seq++,lineNo}));
+          }else if(/^ATR[0-9A-Z]{2}$/i.test(h)||/^(ATTRIBUTE|NOATTRIBUTE)$/i.test(h)){
+            /* ノーツ属性定義は現在の表示対象外。 */
+          }else if(/^\d{3}/.test(h)||/^BPM|^TIL/i.test(h)){
             unhandled++;if(unhandled<=8)warnings.push(`行${lineNo}: 未対応の譜面行「${h}」`);
           }
         }
         if(unhandled>8)warnings.push(`ほか${unhandled-8}行の未対応データがあります`);
         ev.forEach(e=>{if(e.bpmId!==undefined){e.bpm=bpmDef.get(e.bpmId);if(e.bpm===undefined)warnings.push(`小節${e.bar.toFixed(4)}: BPM ID ${e.bpmId} の定義がありません`)}});
+        /* TIL: measure'tick:speed. A speed definition is only active when
+           referenced by HISPEED or MEASUREHS. One measure contains
+           (measure length in beats * ticksPerBeat) ticks. */
+        const measureLengthAt=measure=>{
+          let beats=4;for(const e of ev.filter(v=>v.len).sort((a,b)=>a.bar-b.bar)){if(e.bar<=measure+1e-9)beats=e.len;else break}return beats;
+        };
+        const speedEventKeys=new Set();
+        const appendSpeedEvents=(ids,mode)=>{
+          for(const id of ids){
+            const entries=tilDefs.get(id);
+            if(!entries){warnings.push(`TIL${id.toString(36).toUpperCase().padStart(2,'0')} の速度定義が見つかりません`);continue}
+            for(const entry of entries){
+              const bar=entry.measure+entry.tick/(ticksPerBeat*measureLengthAt(entry.measure));
+              const key=`${mode}|${bar.toFixed(8)}|${entry.speed}`;if(speedEventKeys.has(key))continue;speedEventKeys.add(key);
+              ev.push({bar,speed:entry.speed,eventType:'speed',speedMode:mode});
+            }
+          }
+        };
+        appendSpeedEvents(usedHiSpeedIds,'note');
+        appendSpeedEvents(usedMeasureSpeedIds,'measure');
         raw.sort((a,b)=>a.bar-b.bar||a.seq-b.seq);
 
         /* まず有効レーンを索引化し、同時刻・同じ幅の重なりだけを結合する。 */
         const deleted=new Set(),byBar=new Map(),sameSlot=(a,b)=>a.bk===b.bk&&a.lane===b.lane&&a.w===b.w;
         raw.forEach((n,i)=>{
           if(!(n.lane>=2&&n.lane<14)){
-            deleted.add(i);ev.push({bar:n.bar,text:n.lane===0?'SKILL':n.t===1?'FEVER CHANCE!':'SUPER FEVER!!'});return;
+            deleted.add(i);ev.push({bar:n.bar,text:n.lane===0?'SKILL':n.t===1?'FEVER CHANCE!':'SUPER FEVER!!',eventType:'info'});return;
           }
           const a=byBar.get(n.bk)||[];a.push(i);byBar.set(n.bk,a);
         });
@@ -269,7 +316,7 @@
         return{node,relays};
       };
       /* ---------- ノーツ描画（ゲーム内デザインを再現したSVG） ---------- */
-      const LW=20,PL=46,PR=64,COLW=PL+12*LW+PR,TOP=30;
+      const LW=20,PL=46,PR=250,COLW=PL+12*LW+PR,TOP=30;
       const C={tap:['#eaf0ff','#9c8be8','#8fa4f7'],long:['#e5fbee','#4fd9a0','#4fd9a0'],flick:['#ffeaf0','#ee7a98','#f4a3b6'],crit:['#fff7da','#f1b42e','#f6c84a'],dmg:['#efe5fa','#6f43a8','#8d63c4'],unknown:['#ffe0e0','#dc5555','#b82e2e']};
       const body=(x,y,w,k,a=1,h=14)=>{const c=C[k];return`<g opacity="${a}"><rect x="${x-2}" y="${y-h/2-2}" width="${w+4}" height="${h+4}" rx="8" fill="${c[1]}" opacity=".25"/><rect x="${x}" y="${y-h/2}" width="${w}" height="${h}" rx="6" fill="${c[0]}" stroke="${c[1]}" stroke-width="2"/>${k==='tap'&&h>8?`<rect x="${x+2}" y="${y+h/2-3.5}" width="${w-4}" height="3" rx="1.5" fill="#43dcf3"/>`:''}${h>8?`<rect x="${x+3}" y="${y-3}" width="4" height="6" rx="1" fill="${c[2]}"/><rect x="${x+w-7}" y="${y-3}" width="4" height="6" rx="1" fill="${c[2]}"/>`:''}</g>`};
       const gem=(x,y,k)=>{const f=k==='crit'?['#f8d24f','#d9981a']:k==='flick'?['#f598b1','#d85a82']:['#6fe3b8','#27b185'];return`<polygon points="${x},${y-7} ${x+6.5},${y} ${x},${y+7} ${x-6.5},${y}" fill="${f[0]}" stroke="${f[1]}" stroke-width="1.5"/><polygon points="${x},${y-7} ${x-6.5},${y} ${x},${y}" fill="#fff" opacity=".8"/>`};
@@ -322,7 +369,9 @@
         return d+'Z';
       };
       /* ---------- レイアウト & SVG生成 ---------- */
-      function render(S,ppb,BPC,R0=0,RN=0){
+      function render(S,ppb,BPC,R0=0,RN=0,settings={}){
+       const slideOpacity=Math.max(0,Math.min(1,Number(settings.slideOpacity??.34)));
+       const guideOpacity=Math.max(0,Math.min(1,Number(settings.guideOpacity??.12)));
        const{notes,ev}=S;let maxBar=0;notes.forEach(n=>maxBar=Math.max(maxBar,n.bar));ev.forEach(e=>maxBar=Math.max(maxBar,e.bar));
        const total=Math.floor(maxBar+1e-9)+1,len=[],cum=[0];let cl=4,ei=0;const lens=ev.filter(e=>e.len).sort((a,b)=>a.bar-b.bar);
        for(let b=0;b<=total;b++){while(ei<lens.length&&lens[ei].bar<=b)cl=lens[ei++].len;len[b]=cl;cum[b+1]=cum[b]+cl}
@@ -386,7 +435,7 @@
         for(let c=Math.max(0,Math.floor((ch.c0-m0)/BPC+1e-9));c<=Math.min(nc-1,Math.floor((ch.c1-m0)/BPC+1e-9));c++){
           const edges=ch.segs.map(([a,b])=>makeSlideEdge(a,b,c));
           const path=slideChainPath(edges);
-          if(path)cols[c].p.push(`<path d="${path}" fill="${cr?'#f0c45c':'#55dfa7'}" opacity="${ch.s.deco?'.12':'.34'}"/>`);
+          if(path)cols[c].p.push(`<path d="${path}" fill="${cr?'#f0c45c':'#55dfa7'}" opacity="${ch.s.deco?guideOpacity:slideOpacity}"/>`);
           /* Visible relays are placed by evaluating the actual Bézier edges.
              This also covers a relay which itself carries curve-control data. */
           ch.relays.forEach(m=>{
@@ -456,17 +505,48 @@
         for(let i=0;i<=12;i++)g+=`<line x1="${PL+i*LW}" x2="${PL+i*LW}" y1="${TOP}" y2="${bot}" stroke="#394b63" stroke-width="${i%12?1:1.5}"/>`;
         for(let b=b0;b<=b1;b++){const y=Y(c,b);g+=`<line x1="${PL-4}" x2="${PL+12*LW}" y1="${y}" y2="${y}" stroke="#7b91ad" stroke-width="1.6"/>`;if(b<b1||b===m1)g+=`<text x="${PL-8}" y="${y+4}" text-anchor="end" font-size="11" font-weight="700" fill="#d0dbea">${b}</text>`;
          if(b<b1)for(let k=1;k<len[b];k++){const yy=Y(c,b+k/len[b]);g+=`<line x1="${PL}" x2="${PL+12*LW}" y1="${yy}" y2="${yy}" stroke="#2e4058" stroke-width="1"/>`}}
-        ev.forEach(e=>{if(e.bar<b0||e.bar>=b1+(c===nc-1?1:0)||(!e.bpm&&!e.text))return;const y=Y(c,e.bar);if(e.bpm)g+=`<text x="${PL+12*LW+6}" y="${y-3}" font-size="11" font-weight="700" fill="#f2c66d">♩${+(+e.bpm).toFixed(2)}</text>`;if(e.text)g+=`<text x="${PL+12*LW+6}" y="${y+12}" font-size="10" font-weight="700" fill="${e.text==='SKILL'?'#67c8ff':e.text[0]==='F'?'#ff839d':'#c5a4ff'}">${e.text}</text>`});
-        const inner=`<clipPath id="k${c}"><rect x="0" y="${TOP}" width="${COLW}" height="${colH}"/></clipPath>${g}<g clip-path="url(#k${c})">${o.p.join('')}</g>${o.n.reverse().join('')}${o.a.reverse().join('')}<text x="${PL}" y="16" font-size="11" fill="#a9bdd8">小節 ${b0}–${b1-1}</text>`;cs.push(inner);out+=`<g transform="translate(${ox} 0)">${inner}</g>`}
+        /* Event labels are separated into fixed BPM / scroll-speed / skill-FEVER
+           lanes. Labels in the same lane are vertically packed with leader lines
+           so dense event clusters do not draw over one another. */
+        const evInColumn=ev.filter(e=>e.bar>=b0-1e-9&&e.bar<b1+(c===nc-1?1:0)&&
+          (e.bpm!==undefined||e.speed!==undefined||e.text));
+        const eventLanes=[
+          {key:'bpm',x:PL+12*LW+8,w:60,bg:'#4a3b1e',stroke:'#d4a94e',color:'#ffe09a',items:evInColumn.filter(e=>e.bpm!==undefined).map(e=>({e,y:Y(c,e.bar),label:`BPM ${(+e.bpm).toFixed(2)}`}))},
+          {key:'speed',x:PL+12*LW+74,w:82,bg:'#203b54',stroke:'#63a9db',color:'#aee0ff',items:evInColumn.filter(e=>e.speed!==undefined).map(e=>({e,y:Y(c,e.bar),label:`${e.speedMode==='measure'?'BAR':'HS'} ×${Number(e.speed.toFixed(3))}`}))},
+          {key:'info',x:PL+12*LW+162,w:80,bg:'#382b4b',stroke:'#a98bd0',color:'#e2cffc',items:evInColumn.filter(e=>!!e.text).map(e=>({e,y:Y(c,e.bar),label:e.text}))}
+        ];
+        eventLanes.forEach(lane=>{
+          const items=lane.items.sort((a,b)=>a.y-b.y);if(!items.length)return;
+          const topY=TOP+8,bottomY=Math.max(TOP+8,bot-8),gap=12;
+          const effectiveGap=items.length>1?Math.min(gap,(bottomY-topY)/(items.length-1)):gap;
+          let last=topY-effectiveGap;
+          items.forEach(item=>{item.labelY=Math.max(item.y,last+effectiveGap,topY);last=item.labelY});
+          if(items[items.length-1].labelY>bottomY){
+            const shift=items[items.length-1].labelY-bottomY;items.forEach(item=>item.labelY-=shift);
+          }
+          if(items[0].labelY<topY){
+            const step=items.length>1?(bottomY-topY)/(items.length-1):0;items.forEach((item,i)=>item.labelY=topY+i*step);
+          }
+          items.forEach(item=>{
+            const yy=item.y,ly=item.labelY,short= Math.abs(yy-ly)>1;
+            if(short)g+=`<path d="M${lane.x-3} ${yy} L${lane.x} ${ly}" stroke="${lane.stroke}" stroke-width="1" opacity=".8"/>`;
+            g+=`<circle cx="${lane.x-3}" cy="${yy}" r="2" fill="${lane.stroke}"/>`;
+            g+=`<rect x="${lane.x}" y="${ly-5.5}" width="${lane.w}" height="11" rx="3" fill="${lane.bg}" stroke="${lane.stroke}" stroke-width=".6"/>`;
+            g+=`<text x="${lane.x+4}" y="${ly+3}" font-size="8.5" font-weight="700" fill="${lane.color}">${esc(item.label)}</text>`;
+          });
+        });
+        const inner=`<clipPath id="k${c}"><rect x="0" y="${TOP}" width="${COLW}" height="${colH}"/></clipPath>${g}<g clip-path="url(#k${c})">${o.p.join('')}</g>${o.n.reverse().join('')}${o.a.reverse().join('')}<text x="${PL}" y="16" font-size="11" fill="#a9bdd8">小節 ${b0}–${b1-1}</text><text x="${PL+12*LW+8}" y="16" font-size="9" fill="#d4a94e">BPM</text><text x="${PL+12*LW+82}" y="16" font-size="9" fill="#63a9db">速度</text><text x="${PL+12*LW+170}" y="16" font-size="9" fill="#a98bd0">演出</text>`;cs.push(inner);out+=`<g transform="translate(${ox} 0)">${inner}</g>`}
        return{svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${nc*COLW}" height="${H}" viewBox="0 0 ${nc*COLW} ${H}" font-family="system-ui,sans-serif">${out}</svg>`,cnt,combo,total,cs,w:COLW,h:H};
       }
       /* ---------- UI ---------- */
       let songs=[],diffs={},cur=null,curD=null,auto='';
+      let visualSettings={slideOpacity:.34,guideOpacity:.12};
       const st=t=>$('#st').textContent=t,jget=u=>fetch(MASTER+u).then(r=>{if(!r.ok)throw 0;return r.json()});
       const LEG=(()=>{const f=(w,k,dr)=>`<svg width="${w*LW+20}" height="34"><g transform="translate(10 0)">${body(1,24,w*LW-2,k)}${dr===undefined?'':arrow(w*LW/2,24,w,dr,k==='crit'?'crit':'flick')}</g></svg>`;
        const traceLegend=(cr,fl)=>`<svg width="46" height="48" viewBox="0 0 46 48">${trc(4,37,38,cr,fl)}${fl?arrow(23,37,1,0,cr?'crit':'flick'):''}</svg>`;
        return[['タップ',f(2,'tap')],['クリティカル',f(2,'crit')],['フリック',f(2,'flick',0)],['ロング',f(2,'long')],['中継点',`<svg width="30" height="34"><g>${gem(15,20,'long')}</g></svg>`],['トレース',traceLegend(0,0)],['フリックトレース',traceLegend(0,1)],['クリティカルトレース',traceLegend(1,0)],['クリティカルフリックトレース',traceLegend(1,1)],['ダメージ',f(2,'dmg')]].map(([n,s])=>`<span style="display:inline-flex;align-items:center;font-size:11px;margin-right:6px">${s}${n}</span>`).join('')})();
       $('#legend').innerHTML=LEG;
+      $('#slv').textContent='34%';$('#gdv').textContent='12%';
       function drawList(){const k=$('#q').value.trim().toLowerCase(),hit=songs.filter(s=>!k||[s.id,s.title,s.pronunciation,s.lyricist,s.composer,s.arranger].join('\n').toLowerCase().includes(k));
        $('#list').innerHTML=hit.slice(0,120).map(s=>`<button class="it ${cur&&cur.id===s.id?'on':''}" data-id="${s.id}"><img loading="lazy" src="${jacket(s)}" alt=""><span><b>${esc(s.title)}</b><small>#${s.id} ／ ${esc(s.composer||'')}</small></span></button>`).join('')+(hit.length>120?`<p class="mut">他 ${hit.length-120} 件… 検索で絞り込んでください</p>`:'')}
       function pick(id){cur=songs.find(s=>s.id==id);$('#sel').hidden=false;$('#jk').src=jacket(cur);$('#tt').textContent=cur.title;$('#pr').textContent=cur.pronunciation||'';
@@ -529,11 +609,11 @@
       }
       function draw(text,sourceURL=''){
        view='sus';try{
-        const S=parseSUS(text),R=render(S,+$('#zm').value,+$('#bpc').value),o=cur&&curD&&diffs[cur.id]&&diffs[cur.id][curD],c=R.cnt,w=S.stats.warnings;
+        const S=parseSUS(text),R=render(S,+$('#zm').value,+$('#bpc').value,0,0,visualSettings),o=cur&&curD&&diffs[cur.id]&&diffs[cur.id][curD],c=R.cnt,w=S.stats.warnings;
         const chips=[['タップ',c.tap],['クリティカル',c.crit],['フリック',c.flick],['ロング',c.hold],['ロング8分判定',c.longTick],['中継点',c.relay],['トレース',c.trace],['ダメージ',c.dmg]];
         const curveStart=S.notes.filter(n=>n.k==='sl'&&n.dir&&n.dir.t===2).length;
         const curveEnd=S.notes.filter(n=>n.k==='sl'&&n.dir&&(n.dir.t===5||n.dir.t===6)).length;
-        $('#bar').innerHTML=chips.map(([n,v])=>`<span class="ch">${n} <b>${v}</b></span>`).join('')+`<span class="ch">曲線制御・開始側 <b>${curveStart}</b></span><span class="ch">曲線制御・終了側 <b>${curveEnd}</b></span><span class="ch">小節 <b>${R.total}</b></span><span class="ch">解析対象 <b>${S.stats.active}/${S.stats.raw}</b></span>`+(o?`<span class="ch ${o.totalNoteCount===R.combo?'ok':'ng'}">解析カウント <b>${R.combo}</b> ／ マスター情報 ${o.totalNoteCount}</span>`:`<span class="ch">解析カウント <b>${R.combo}</b></span>`)+(w.length?`<span class="ch ng" title="${esc(w.join('\n'))}">要確認 <b>${w.length}</b></span>`:'')+(cur&&curD?`<a class="ch" href="${esc(svgURL(cur.id,curD))}" target="_blank" rel="noopener">生成元SVGと照合</a>`:'');
+        $('#bar').innerHTML=chips.map(([n,v])=>`<span class="ch">${n} <b>${v}</b></span>`).join('')+`<span class="ch">曲線制御・開始側 <b>${curveStart}</b></span><span class="ch">曲線制御・終了側 <b>${curveEnd}</b></span><span class="ch">小節 <b>${R.total}</b></span><span class="ch">解析対象 <b>${S.stats.active}/${S.stats.raw}</b></span><span class="ch">BPM変化 <b>${S.ev.filter(e=>e.bpm!==undefined).length}</b></span><span class="ch">速度イベント <b>${S.ev.filter(e=>e.speed!==undefined).length}</b></span>`+(o?`<span class="ch ${o.totalNoteCount===R.combo?'ok':'ng'}">解析カウント <b>${R.combo}</b> ／ マスター情報 ${o.totalNoteCount}</span>`:`<span class="ch">解析カウント <b>${R.combo}</b></span>`)+(w.length?`<span class="ch ng" title="${esc(w.join('\n'))}">要確認 <b>${w.length}</b></span>`:'')+(cur&&curD?`<a class="ch" href="${esc(svgURL(cur.id,curD))}" target="_blank" rel="noopener">生成元SVGと照合</a>`:'');
         $('#chart').innerHTML=R.svg;
         const srcLabel=sourceURL?` ／ ${sourceURL.includes('_01_rip')?'_01_rip元データ':'指定URL'}`:'';
         st(`解析・描画完了：ノーツ ${S.stats.active}/${S.stats.raw}、スライド経路 ${S.stats.chains}本、曲線制御 開始側${curveStart}/終了側${curveEnd}${w.length?`、要確認 ${w.length}件`:''}${srcLabel}`);
@@ -543,12 +623,57 @@
       $('#dif').onclick=e=>{const s=e.target.closest('.dc');if(s)setDiff(s.dataset.d)};
       $('#q').oninput=drawList;$('#goU').onclick=loadURL;$('#goT').onclick=()=>draw($('#txt').value);
       $('#zm').oninput=()=>{$('#zv').textContent=$('#zm').value;if(view==='svg')zoomSVG()};
-      $('#goR').onclick=()=>{const t=$('#txt').value;if(!t.trim()||view==='svg'){st('拡大表示にはSUSの解析が必要です（SVG画像表示では使えません）');return}
-       const z=+$('#zm').value,n=+$('#bpc').value,w=window.open('','_blank');if(!w){st('ポップアップがブロックされました。許可してください');return}
-       try{const R=render(parseSUS(t),z,n),T=`拡大表示（全${R.total}小節・${n}小節/列・${z}px/拍）`;
-        /* 最初のページと同じく、1列あたりの小節数ごとの列を横に並べる（はみ出す分は横スクロール） */
-        w.document.write(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${T}</title><body style="margin:0;background:#f7fbff;font:13px system-ui;color:#27324a"><div style="padding:8px 14px;background:#fff;border-bottom:2px solid #2fbfae;display:flex;gap:14px;align-items:center;flex-wrap:wrap">${T}<label>表示倍率 <input id="s" type="range" min="5" max="300" step="1" value="100" style="width:160px;vertical-align:middle"> <b id="v">100%</b> <small style="color:#74829f">最小5%</small></label></div><div id="c" style="overflow:auto;height:calc(100vh - 44px);padding:12px;background:#111827">${R.svg}</div><script>const s=document.querySelector("#c svg"),w0=+s.getAttribute("width");document.querySelector("#s").oninput=e=>{s.style.width=w0*e.target.value/100+"px";s.style.height="auto";document.querySelector("#v").textContent=e.target.value+"%"}<\/script>`);w.document.close()}catch(e){w.close();st('解析エラー: '+e.message)}};
+      $('#goR').onclick=()=>{
+       const t=$('#txt').value;if(!t.trim()||view==='svg'){st('拡大表示にはSUSの解析が必要です（SVG画像表示では使えません）');return}
+       const spacing=+$('#zm').value||36,columns=+$('#bpc').value||8;
+       const w=window.open('','_blank');if(!w){st('ポップアップがブロックされました。許可してください');return}
+       try{
+        const popupScore=parseSUS(t),cfg={zoom:25,spacing,slideOpacity:visualSettings.slideOpacity,guideOpacity:visualSettings.guideOpacity};
+        const first=render(popupScore,cfg.spacing,columns,0,0,cfg),title=`拡大表示（全${first.total}小節・${columns}小節/列）`;
+        w.document.write(`<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
+        <style>
+          *{box-sizing:border-box}body{margin:0;background:#101827;color:#e5edf7;font:13px system-ui,"Hiragino Sans","Noto Sans JP",sans-serif;height:100vh;display:flex;flex-direction:column}
+          header{flex:none;display:flex;align-items:center;gap:12px;padding:8px 12px;background:#18263a;border-bottom:1px solid #344b66}
+          header strong{font-size:14px}button{border:0;border-radius:7px;padding:7px 11px;background:#2fbfae;color:#102033;font-weight:700;cursor:pointer}
+          #panel{flex:none;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:10px 14px;background:#1d2c42;border-bottom:1px solid #344b66}
+          #panel[hidden]{display:none}.control{min-width:180px;display:flex;flex-direction:column;gap:3px}.control label{font-size:11px;color:#c4d2e4}.control input{width:180px;accent-color:#58d7c4}
+          .value{font-weight:700;color:#fff;margin-left:5px}#chartBox{flex:1;min-height:0;overflow:auto;padding:12px;background:#111827}
+          #chartBox svg{display:block;max-width:none;height:auto}.hint{font-size:10px;color:#91a6bf}
+        </style>
+        <header><strong>${title}</strong><span class="hint">拡大倍率・ノーツ間隔・透明度はこの画面で独立して変更できます</span><button id="toggle" style="margin-left:auto">設定を隠す</button></header>
+        <section id="panel">
+          <div class="control"><label>拡大倍率 <span class="value" id="zoomValue">25%</span></label><input id="zoom" type="range" min="5" max="300" step="1" value="25"></div>
+          <div class="control"><label>ノーツ間隔（px/拍） <span class="value" id="spacingValue">${cfg.spacing}</span></label><input id="spacing" type="range" min="16" max="400" step="1" value="${cfg.spacing}"></div>
+          <div class="control"><label>スライドノーツ透明度 <span class="value" id="slideValue">${Math.round(cfg.slideOpacity*100)}%</span></label><input id="slideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.slideOpacity*100)}"></div>
+          <div class="control"><label>ガイドノーツ透明度 <span class="value" id="guideValue">${Math.round(cfg.guideOpacity*100)}%</span></label><input id="guideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.guideOpacity*100)}"></div>
+        </section><main id="chartBox">${first.svg}</main>
+        <script>
+          const cfg={zoom:25,spacing:${cfg.spacing},slideOpacity:${cfg.slideOpacity},guideOpacity:${cfg.guideOpacity}};
+          const $=id=>document.getElementById(id);
+          function applyZoom(){const svg=$('chartBox').querySelector('svg');if(!svg)return;const base=Number(svg.getAttribute('width'))||1;svg.style.width=(base*cfg.zoom/100)+'px';svg.style.height='auto';$('zoomValue').textContent=cfg.zoom+'%'}
+          function requestRender(){if(typeof window.__renderChartFromParent==='function')window.__renderChartFromParent({...cfg})}
+          $('zoom').addEventListener('input',e=>{cfg.zoom=Number(e.target.value);applyZoom()});
+          $('spacing').addEventListener('input',e=>{cfg.spacing=Number(e.target.value);$('spacingValue').textContent=cfg.spacing;requestRender()});
+          $('slideOpacity').addEventListener('input',e=>{cfg.slideOpacity=Number(e.target.value)/100;$('slideValue').textContent=e.target.value+'%';requestRender()});
+          $('guideOpacity').addEventListener('input',e=>{cfg.guideOpacity=Number(e.target.value)/100;$('guideValue').textContent=e.target.value+'%';requestRender()});
+          $('toggle').addEventListener('click',()=>{const panel=$('panel');panel.hidden=!panel.hidden;$('toggle').textContent=panel.hidden?'設定を表示':'設定を隠す'});
+          window.__applyZoom=applyZoom;
+        <\/script></html>`);
+        w.document.close();
+        w.__renderChartFromParent=(next)=>{
+          const updated=render(popupScore,next.spacing,columns,0,0,next),box=w.document.getElementById('chartBox');
+          if(!box)return;box.innerHTML=updated.svg;
+          const spacingLabel=w.document.getElementById('spacingValue');if(spacingLabel)spacingLabel.textContent=next.spacing;
+          if(typeof w.__applyZoom==='function')w.__applyZoom();
+        };
+        if(typeof w.__applyZoom==='function')w.__applyZoom();
+       }catch(e){w.close();st('拡大表示の生成エラー: '+e.message);console.error(e)}
+      };
       $('#zm').onchange=$('#bpc').onchange=()=>{if(view==='svg')zoomSVG();else if($('#txt').value.trim())draw($('#txt').value)};
+      const updateMainOpacityLabels=()=>{$('#slv').textContent=$('#slOpacity').value+'%';$('#gdv').textContent=$('#gdOpacity').value+'%'};
+      $('#slOpacity').oninput=$('#gdOpacity').oninput=updateMainOpacityLabels;
+      $('#slOpacity').onchange=()=>{visualSettings.slideOpacity=Number($('#slOpacity').value)/100;if(view==='sus'&&$('#txt').value.trim())draw($('#txt').value)};
+      $('#gdOpacity').onchange=()=>{visualSettings.guideOpacity=Number($('#gdOpacity').value)/100;if(view==='sus'&&$('#txt').value.trim())draw($('#txt').value)};
       $('#src').onchange=()=>{if(cur&&curD)setDiff(curD)};
       $('#smp').onclick=()=>{$('#txt').value=SAMPLE;draw(SAMPLE)};
       const SAMPLE=`#TITLE "SAMPLE"
