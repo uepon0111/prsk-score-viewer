@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sekai Viewer — MMW/unipjsk 再現ビューア</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #04060c; color: #dfe6f2;
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", sans-serif; }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  /* ---------- control bar ---------- */
+  #bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+    padding: 8px 12px; background: #0b101d; border-bottom: 1px solid #1d2740; font-size: 13px; }
+  #bar .grp { display: flex; gap: 6px; align-items: center; }
+  #bar label { color: #8fa3c8; }
+  input[type="text"], input[type="number"], select {
+    background: #131b30; color: #e8eefb; border: 1px solid #2a3a5f; border-radius: 6px;
+    padding: 4px 7px; font-size: 13px; }
+  input[type="number"] { width: 76px; }
+  button { background: #1d2c4d; color: #eaf1ff; border: 1px solid #33507f; border-radius: 6px;
+    padding: 5px 12px; cursor: pointer; font-size: 13px; }
+  button:hover { background: #27406b; }
+  button.primary { background: #0e7d86; border-color: #12a5b1; }
+  #seek { flex: 1 1 220px; accent-color: #19b8c4; }
+  #status { color: #7fe3ec; min-height: 1em; }
+  .mut { color: #7186ab; }
+  /* ---------- stage ---------- */
+  #stageWrap { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #stageBox { position: relative; }
+  canvas#gl { display: block; width: 100%; height: 100%; background: #05070f; }
+  /* ---------- HUD ---------- */
+  #hud { position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+    font-family: "FOT-RodinNTLG Pro", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
+  #hud-topleft { position: absolute; top: 2.2%; left: 1.6%; display: flex; gap: 10px; align-items: flex-start; }
+  #hud-rankBadge { width: 64px; height: 64px; border-radius: 10px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-weight: 800; font-size: 34px; line-height: 1;
+    color: #06281e; background: linear-gradient(160deg, #5ff0c0, #23b98a); box-shadow: 0 2px 10px rgba(0,0,0,.45); }
+  #hud-rankBadge small { font-size: 8px; letter-spacing: .12em; color: rgba(0,0,0,.55); margin-top: 3px; }
+  #hud-rankBadge[data-rank="C"] { background: linear-gradient(160deg, #6fd7ff, #2b93d6); color: #06283d; }
+  #hud-rankBadge[data-rank="B"] { background: linear-gradient(160deg, #b9a7ff, #6f5fe0); color: #1d1440; }
+  #hud-rankBadge[data-rank="A"] { background: linear-gradient(160deg, #ffb1dd, #e05f9e); color: #3d0a26; }
+  #hud-rankBadge[data-rank="S"] { background: linear-gradient(160deg, #ffe98a, #f5a623); color: #3d2a06; }
+  #hud-scoreBox { min-width: 300px; }
+  #hud-scoreLabel { font-size: 12px; letter-spacing: .18em; color: #cfe3ff; font-weight: 700;
+    display: flex; justify-content: space-between; }
+  #hud-scoreLabel .marks { color: #9db8dd; letter-spacing: .3em; font-size: 11px; }
+  #hud-scoreBar { position: relative; height: 9px; border-radius: 5px; background: rgba(120,150,200,.28);
+    margin: 10px 0 2px; }
+  #hud-scoreBar .mark { position: absolute; top: -13px; transform: translateX(-50%); font-size: 10px;
+    color: #9db8dd; font-weight: 700; }
+  #hud-scoreBar .mark::after { content: ""; position: absolute; left: 50%; top: 12px; width: 1px; height: 9px; background: rgba(200,220,255,.5); }
+  #hud-scoreFill { height: 100%; width: 0%; border-radius: 5px;
+    background: linear-gradient(90deg, #37e0b0, #37b6e0); transition: width .12s linear; }
+  #hud-scoreNum { font-size: 27px; font-weight: 800; letter-spacing: .06em; color: #fff;
+    font-variant-numeric: tabular-nums; text-shadow: 0 2px 6px rgba(0,0,0,.6); display: inline-block; }
+  #hud-scorePlus { display: inline-block; margin-left: 8px; font-size: 15px; font-weight: 700; color: #ffe9a8;
+    opacity: 0; font-variant-numeric: tabular-nums; }
+  #hud-scorePlus.pop { animation: plusPop 0.7s ease-out; }
+  @keyframes plusPop { 0% { opacity: 0; transform: translateY(4px); } 18% { opacity: 1; } 100% { opacity: 0; transform: translateY(-7px); } }
+  #hud-topright { position: absolute; top: 2.2%; right: 1.6%; display: flex; align-items: center; gap: 10px; }
+  #hud-lifeBox { text-align: right; }
+  #hud-lifeLabel { font-size: 12px; letter-spacing: .14em; color: #ffd7e8; font-weight: 700; }
+  #hud-lifeLabel b { color: #fff; font-size: 15px; margin-left: 6px; font-variant-numeric: tabular-nums; }
+  #hud-lifeBar { width: 190px; height: 10px; border-radius: 6px; background: rgba(255,150,190,.25); margin-top: 3px; overflow: hidden; }
+  #hud-lifeFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff7eb6, #ffb1d6); }
+  #hud-pauseBtn { width: 40px; height: 40px; border-radius: 50%; background: rgba(230,240,255,.92); color: #223;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; pointer-events: auto; cursor: pointer; }
+  #hud-autoBadge { position: absolute; right: 1.8%; bottom: 4.5%; padding: 5px 14px; border-radius: 999px;
+    background: rgba(13, 148, 160, .85); color: #eaffff; font-weight: 800; letter-spacing: .08em; font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  #hud-judge { position: absolute; left: 50%; top: 55%; transform: translate(-50%, -50%); text-align: center; }
+  #hud-comboWrap { opacity: 0; transition: opacity .2s; }
+  #hud-comboNum { font-size: 44px; font-weight: 800; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.65); font-variant-numeric: tabular-nums; }
+  #hud-comboWrap span { display: block; font-size: 12px; letter-spacing: .34em; color: #cfe3ff; font-weight: 700; }
+  #hud-judgeText { margin-top: 2px; font-size: 30px; font-weight: 800; letter-spacing: .14em; color: #c8f542;
+    text-shadow: 0 0 14px rgba(160,255,60,.45), 0 2px 6px rgba(0,0,0,.6); }
+  #hud-judgeText.pulse { animation: judgePulse .28s ease-out; }
+  @keyframes judgePulse { 0% { transform: scale(1.22); } 100% { transform: scale(1); } }
+  #hud-banner { position: absolute; left: 1.6%; top: 34%; min-width: 210px; padding: 8px 14px 9px 12px;
+    background: linear-gradient(90deg, rgba(10,90,110,.92), rgba(10,90,110,.55) 75%, transparent);
+    border-left: 4px solid #2fd6e8; transform: translateX(-115%); transition: transform .3s ease; }
+  #hud-banner.show { transform: translateX(0); }
+  #hud-banner .banner-title { font-size: 12px; letter-spacing: .3em; color: #aeefff; font-weight: 700; }
+  #hud-banner .banner-sub { font-size: 19px; font-weight: 800; color: #fff; }
+  #hud-feverBanner { position: absolute; left: 50%; top: 16%; transform: translate(-50%, -8px); font-size: 34px;
+    font-weight: 900; letter-spacing: .1em; color: #fff; opacity: 0; transition: all .25s;
+    text-shadow: 0 0 18px rgba(255,120,200,.8), 0 2px 8px rgba(0,0,0,.6); }
+  #hud-feverBanner.show { opacity: 1; transform: translate(-50%, 0); }
+  /* ---------- settings ---------- */
+  #settings { position: absolute; top: 0; right: 0; width: 292px; max-height: 100%; overflow-y: auto;
+    background: rgba(8, 13, 26, .94); border-left: 1px solid #22345c; padding: 12px 14px; font-size: 13px;
+    transform: translateX(105%); transition: transform .25s; z-index: 5; }
+  #settings.open { transform: translateX(0); }
+  #settings h3 { margin: 4px 0 10px; font-size: 14px; color: #9fd8ff; }
+  #settings .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 7px 0; }
+  #settings .row label { color: #a9bcdf; }
+  #settings .row output { color: #7fe3ec; min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+  #settings input[type="range"] { flex: 1; accent-color: #19b8c4; }
+  #settings select { max-width: 130px; }
+  #settings .sect { border-top: 1px solid #1d2a47; margin-top: 10px; padding-top: 8px; }
+  .hiddenFile { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <div class="grp">
+      <label>曲ID</label><input id="songId" type="number" value="796" style="width:70px">
+      <select id="diff">
+        <option value="easy">EASY</option><option value="normal">NORMAL</option>
+        <option value="hard">HARD</option><option value="expert">EXPERT</option>
+        <option value="master" selected>MASTER</option><option value="append">APPEND</option>
+      </select>
+      <button id="loadSong" class="primary">読み込み</button>
+    </div>
+    <div class="grp">
+      <button id="fileSusBtn">SUSファイル</button>
+      <button id="fileBgmBtn">音源ファイル</button>
+      <button id="fileJacketBtn">ジャケット</button>
+      <input class="hiddenFile" id="fileSus" type="file" accept=".sus,.txt">
+      <input class="hiddenFile" id="fileBgm" type="file" accept="audio/*">
+      <input class="hiddenFile" id="fileJacket" type="file" accept="image/*">
+    </div>
+    <div class="grp">
+      <button id="playBtn">▶ 再生</button>
+      <input id="seek" type="range" min="0" max="1000" value="0">
+      <span id="timeLabel" class="mut">0:00 / 0:00</span>
+    </div>
+    <div class="grp">
+      <label>速度</label>
+      <select id="rate">
+        <option value="0.25">0.25x</option><option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option><option value="1" selected>1.0x</option>
+        <option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2.0x</option>
+      </select>
+      <label>オフセット(ms)</label><input id="offsetMs" type="number" value="0" step="5">
+      <button id="settingsBtn">設定</button>
+    </div>
+    <div class="grp"><span id="status"></span><span id="songTitle" class="mut"></span></div>
+  </div>
+
+  <div id="stageWrap">
+    <div id="stageBox">
+      <canvas id="gl"></canvas>
+      <div id="hud">
+        <div id="hud-topleft">
+          <div id="hud-rankBadge" data-rank="D">D<small>SCORERANK</small></div>
+          <div id="hud-scoreBox">
+            <div id="hud-scoreLabel"><span>SCORE</span></div>
+            <div id="hud-scoreBar"><div id="hud-scoreFill"></div><span class="mark" style="left:2%">C</span><span class="mark" style="left:35%">B</span><span class="mark" style="left:65%">A</span><span class="mark" style="left:90%">S</span></div>
+            <div><span id="hud-scoreNum">00000000</span><span id="hud-scorePlus"></span></div>
+          </div>
+        </div>
+        <div id="hud-topright">
+          <div id="hud-lifeBox">
+            <div id="hud-lifeLabel">♥ LIFE <b id="hud-lifeNum">1000</b></div>
+            <div id="hud-lifeBar"><div id="hud-lifeFill"></div></div>
+          </div>
+          <div id="hud-pauseBtn">❚❚</div>
+        </div>
+        <div id="hud-banner"><div class="banner-title">SKILL</div><div class="banner-sub">スコアUP 130%</div></div>
+        <div id="hud-feverBanner"></div>
+        <div id="hud-judge">
+          <div id="hud-comboWrap"><span id="hud-comboNum">0</span><span>COMBO</span></div>
+          <div id="hud-judgeText">AUTO</div>
+        </div>
+        <div id="hud-autoBadge">🎵 AUTO LIVE</div>
+      </div>
+      <div id="settings">
+        <h3>表示・エンジン設定</h3>
+        <div class="row"><label>ノーツ速度</label><input id="cfg-noteSpeed" type="range" min="1" max="12" step="0.1" value="10.5"><output id="cfg-noteSpeed-v">10.5</output></div>
+        <div class="row"><label>スキン</label><select id="cfg-skin"><option value="01">01</option><option value="02">02</option></select></div>
+        <div class="row"><label>SEセット</label><select id="cfg-seSet"><option value="01">SE01</option><option value="02">SE02</option><option value="off">オフ</option></select></div>
+        <div class="row"><label>SE音量</label><input id="cfg-seVol" type="range" min="0" max="1" step="0.05" value="0.9"><output id="cfg-seVol-v">0.90</output></div>
+        <div class="row"><label>BGM音量</label><input id="cfg-bgmVol" type="range" min="0" max="1" step="0.05" value="0.85"><output id="cfg-bgmVol-v">0.85</output></div>
+        <div class="sect">
+          <div class="row"><label>ホールド不透明度</label><input id="cfg-holdAlpha" type="range" min="0" max="1" step="0.02" value="0.74"><output id="cfg-holdAlpha-v">0.74</output></div>
+          <div class="row"><label>ガイド不透明度</label><input id="cfg-guideAlpha" type="range" min="0" max="1" step="0.02" value="0.5"><output id="cfg-guideAlpha-v">0.50</output></div>
+          <div class="row"><label>背景の明るさ</label><input id="cfg-bgBright" type="range" min="0" max="1.5" step="0.05" value="1"><output id="cfg-bgBright-v">1.00</output></div>
+          <div class="row"><label>ステージカバー</label><input id="cfg-stageCover" type="range" min="0" max="1" step="0.02" value="0"><output id="cfg-stageCover-v">0.00</output></div>
+          <div class="row"><label>ステージ不透明度</label><input id="cfg-stageOpacity" type="range" min="0" max="1" step="0.02" value="1"><output id="cfg-stageOpacity-v">1.00</output></div>
+        </div>
+        <div class="sect">
+          <div class="row"><label>ミラー</label><input id="cfg-mirror" type="checkbox"></div>
+          <div class="row"><label>フリックアニメーション</label><input id="cfg-flickAnim" type="checkbox" checked></div>
+          <div class="row"><label>ホールドアニメーション</label><input id="cfg-holdAnim" type="checkbox" checked></div>
+          <div class="row"><label>同時押しライン</label><input id="cfg-simLine" type="checkbox" checked></div>
+          <div class="row"><label>エフェクト</label><input id="cfg-effects" type="checkbox" checked></div>
+          <div class="row"><label>コンボ表示</label><input id="cfg-showCombo" type="checkbox" checked></div>
+        </div>
+        <div class="sect">
+          <div class="row"><label>出力レイテンシ補正</label><output id="latencyInfo">-</output></div>
+          <p class="mut" style="margin:6px 0 0">譜面の時刻 = 音源時刻 − フィラー + 出力レイテンシ + 手動オフセット で同期します（Web Audio の outputLatency / getOutputTimestamp から自動取得）。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/mmw-data.js"></script>
+<script src="js/sus.js"></script>
+<script src="js/drawdata.js"></script>
+<script src="js/render.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/bg.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
