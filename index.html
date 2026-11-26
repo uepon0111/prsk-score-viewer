@@ -126,6 +126,32 @@
     </style>
   </head>
   <body>
+    <div id="ldOv" role="status" aria-label="読み込み中">
+      <div class="ldCard">
+        <div class="ldTitle">♪ プロセカ 譜面ビューア</div>
+        <div class="ldMsg">読み込み中…</div>
+        <div class="ldBarWrap"><i id="ldBar"></i></div>
+        <div class="ldSub"><span id="ldLab">楽曲データを取得しています</span><span id="ldPct">0%</span></div>
+      </div>
+    </div>
+    <style>
+      #ldOv{position:fixed;inset:0;z-index:300;background:#101827;color:#e5edf7;display:flex;align-items:center;justify-content:center;font:14px system-ui,"Hiragino Sans","Noto Sans JP",sans-serif}
+      #ldOv[hidden]{display:none}
+      #ldOv .ldCard{width:min(420px,86vw);text-align:center}
+      #ldOv .ldTitle{font-size:17px;font-weight:700;margin-bottom:14px}
+      #ldOv .ldMsg{font-size:14px;margin-bottom:12px}
+      #ldOv .ldBarWrap{height:10px;border-radius:999px;background:#26364d;overflow:hidden}
+      #ldOv .ldBarWrap i{display:block;height:100%;width:0%;border-radius:999px;background:#2fbfae;transition:width .3s ease}
+      #ldOv .ldSub{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#9db4cc}
+      body.ld main,body.ld header.top,body.ld #nav,body.ld #scrim{visibility:hidden}
+    </style>
+    <script>
+      document.body.classList.add('ld');
+      window.__ldN=0;window.__ldT=3;
+      window.__ldStep=function(lab){window.__ldN=Math.min(window.__ldT,window.__ldN+1);var p=Math.round(window.__ldN/window.__ldT*100);var b=document.getElementById('ldBar'),t=document.getElementById('ldPct'),l=document.getElementById('ldLab');if(b)b.style.width=p+'%';if(t)t.textContent=p+'%';if(l&&lab)l.textContent=lab+'を取得しました';};
+      window.__ldDone=function(){var o=document.getElementById('ldOv');if(o)o.hidden=true;document.body.classList.remove('ld');};
+      window.__ldFail=function(){var l=document.getElementById('ldLab');if(l)l.textContent='取得に失敗しました';var m=document.querySelector('#ldOv .ldMsg');if(m)m.textContent='楽曲データを取得できません。通信状況を確認して再読み込みしてください';};
+    </script>
     <header class="top">
       <button id="menu" aria-label="メニューを開く" aria-expanded="false" aria-controls="nav">☰</button>
       <h1 id="ttl">ホーム</h1>
@@ -4306,7 +4332,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
               Y.forEach((y,c)=>out.copyToChannel(y.subarray(0,L),c));return out;
              }
              const load=async()=>{
-              const g=++gen,v=VL[vi],st=m=>{if(g===gen)$('astat').textContent=m};aStop();ab=null;if(!v)return;
+              const g=++gen,v=VL[vi],st=m=>{if(g===gen)$('astat').textContent=m};aStop();ab=null;if(!v){if(window.__ldA)__ldA();return}
               try{
                let o=SC.get(v.a);
                if(!o){st('音源を読み込み中…');let r=null;try{r=await parent.__cget('audio/'+v.a)}catch(e){}r=r||await fetch(`https://storage.sekai.best/sekai-jp-assets/music/long/${v.a}/${v.a}.mp3`,{credentials:'omit',referrerPolicy:'no-referrer'});if(!r.ok)throw new Error('HTTP '+r.status);o=await getCtx().decodeAudioData(await r.arrayBuffer());SC.set(v.a,o);if(SC.size>2)SC.delete(SC.keys().next().value)}
@@ -4314,20 +4340,20 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
                const rt=rate;let b=o;
                if(rt<1)b=await stretch(o,rt,async p=>{if(g!==gen)throw 0;st(`速度 ${rt.toFixed(2)}× 用に音声を変換中… ${Math.round(p*100)}%`);await yd()});
                if(g!==gen)return;
-               ab={buf:b,r:rt};st('');aStart();
-              }catch(e){st('音源を取得できません（'+(e&&e.message||'通信/CORS')+'）')}
+               ab={buf:b,r:rt};st('');aStart();if(window.__ldA)__ldA();
+              }catch(e){if(window.__ldA)__ldA();st('音源を取得できません（'+(e&&e.message||'通信/CORS')+'）')}
              };
              /* 設定のデフォルトボーカルで初期選択（その種別がなければもう一方、どちらもなければ先頭） */
              const defVocal=()=>{for(const t of pf.dv==='virtual_singer'?['virtual_singer','sekai']:['sekai','virtual_singer']){const i=VL.findIndex(v=>v.t===t);if(i>=0)return i}return 0};
              const initA=async()=>{
-              const sel=$('vocal');if(D.mid==null){sel.options[0].text='（曲未選択のため音源なし）';return}
+              const sel=$('vocal');if(D.mid==null){if(window.__ldA)__ldA();sel.options[0].text='（曲未選択のため音源なし）';return}
               try{
                const[mv,gc,oc]=await Promise.all(['musicVocals','gameCharacters','outsideCharacters'].map(f=>parent.__jget?parent.__jget(f+'.json'):fetch(MD+f+'.json').then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})));
                const G=new Map(gc.map(c=>[c.id,(c.firstName||'')+(c.givenName||'')])),O=new Map(oc.map(c=>[c.id,c.name]));
                VL=mv.filter(v=>v.musicId===D.mid).sort((a,b)=>a.seq-b.seq).map(v=>({a:v.assetbundleName,t:v.musicVocalType,l:(v.caption||v.musicVocalType)+(v.characters&&v.characters.length?'：'+v.characters.slice().sort((a,b)=>a.seq-b.seq).map(c=>(c.characterType==='game_character'?G:O).get(c.characterId)||'?').join('、'):'')}));
                if(!VL.length)throw new Error('この曲のボーカル情報がありません');
                sel.length=0;VL.forEach((v,i)=>sel.add(new Option(v.l,i)));vi=defVocal();sel.value=vi;sel.disabled=false;load();
-              }catch(e){sel.options[0].text='取得失敗';$('astat').textContent='ボーカル情報を取得できません（'+(e&&e.message||'通信/CORS')+'）'}
+              }catch(e){if(window.__ldA)__ldA();sel.options[0].text='取得失敗';$('astat').textContent='ボーカル情報を取得できません（'+(e&&e.message||'通信/CORS')+'）'}
              };
              const fmt=t=>{t=Math.max(0,t);const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)};
              /* ---- 1フレームの描画：現在時刻 t から全要素の位置を計算（状態を持たないのでシーク・巻き戻しも同じ処理） ---- */
@@ -4716,7 +4742,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
               .cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;line-height:1.35;color:#c4d2e4}.cap b{color:#8ef0e2;font-variant-numeric:tabular-nums;white-space:nowrap}
               .control input[type=range]{display:block;width:100%;height:30px;accent-color:#58d7c4}
               .chk{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid #344b66;border-radius:6px;background:#0f1a2b;font-size:13px;color:#e5edf7;cursor:pointer;user-select:none}.chk:has(input:checked){border-color:#58d7c4}.chk input{width:16px;height:16px;margin:0;accent-color:#58d7c4}
-              #wrap{flex:1;min-height:0;position:relative;background:#111827}#stage{display:block;width:100%;height:100%}#gbg,#gview{display:none;position:absolute;left:0;top:0;width:100%;height:100%}#ggl{display:none;position:absolute;left:0;top:0;width:100%;height:100%}
+              #wrap{flex:1;min-height:0;position:relative;background:#111827}#stage{display:block;width:100%;height:100%}#gbg,#gview{display:none;position:absolute;left:0;top:0;width:100%;height:100%}#ggl{display:none;position:absolute;left:0;top:0;width:100%;height:100%}#ldOvP{position:fixed;inset:0;z-index:120;background:#101827;color:#e5edf7;display:flex;align-items:center;justify-content:center}#ldOvP[hidden]{display:none}#ldOvP .ldCard{width:min(420px,86vw);text-align:center}#ldOvP .ldMsg{font-size:14px;margin-bottom:12px}#ldOvP .ldBarWrap{height:10px;border-radius:999px;background:#26364d;overflow:hidden}#ldOvP .ldBarWrap i{display:block;height:100%;width:40%;border-radius:999px;background:#2fbfae;animation:ldSlide 1.2s ease-in-out infinite alternate}@keyframes ldSlide{from{transform:translateX(-60%)}to{transform:translateX(220%)}}#ldOvP .ldSub{margin-top:8px;font-size:12px;color:#9db4cc;min-height:1em}
               .hud{position:absolute;left:10px;top:8px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}.hud span{background:#0b1220cc;border:1px solid #344b66;border-radius:8px;padding:2px 10px;font-weight:700;font-variant-numeric:tabular-nums}
               footer{flex:none;display:flex;flex-direction:column;gap:8px;padding:8px 12px 10px;background:#18263a;border-top:1px solid #344b66}
               .tl{display:flex;align-items:center;gap:10px}.tl input{flex:1;min-width:0;accent-color:#58d7c4}.tl span{min-width:4.4em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
@@ -4737,7 +4763,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
               <div class="control"><label class="cap" for="slO">スライドノーツ透明度 <b id="slv"></b></label><input id="slO" type="range" min="0" max="100"></div>
               <div class="control"><label class="cap" for="gdO">ガイドノーツ透明度 <b id="gdv"></b></label><input id="gdO" type="range" min="0" max="100"></div>
              </section>
-             <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas>
+             <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
               <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
              <footer>
               <div class="tl"><span id="tcur">0:00.0</span><input id="seek" type="range" aria-label="再生位置"><span id="tend"></span></div>
@@ -4749,7 +4775,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
               <div id="astat" class="hint" role="status"></div>
               <div class="hint">Space：再生/一時停止　←→：1秒（Shift で5秒）　↑↓：小節移動　Home：先頭　End：末尾　V：表示切り替え</div>
              </footer>
-             <script>const cubicPoint=${cubicPoint},cubicXAtY=${cubicXAtY};const MMW_ENG=${mmwFactory}();(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5]},1);<\/script></html>`);
+             <script>window.__ldADone=false;window.__ldA=function(){if(window.__ldADone)return;window.__ldADone=true;var o=document.getElementById("ldOvP");if(o)o.hidden=true;};setTimeout(function(){window.__ldA();},45000);setInterval(function(){if(window.__ldADone)return;var a=document.getElementById("astat"),l=document.getElementById("ldSubP");if(a&&l&&a.textContent)l.textContent=a.textContent;},250);<\/script><script>const cubicPoint=${cubicPoint},cubicXAtY=${cubicXAtY};const MMW_ENG=${mmwFactory}();(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5]},1);<\/script></html>`);
              w.document.close();
             };
             /* ---------- 拡大表示・譜面再生：別タブを開かず、同じタブの全画面レイヤー（iframe）で表示する ----------
@@ -5113,10 +5139,10 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
             (async()=>{
               st('楽曲データを取得中…');
               try{
-                const[m,d,t]=await Promise.all([jget('musics.json'),jget('musicDifficulties.json'),jget('musicTags.json').catch(()=>[])]);
+                const __ldW=(p,l)=>p.then(v=>{if(window.__ldStep)__ldStep(l);return v});const[m,d,t]=await Promise.all([__ldW(jget('musics.json'),'楽曲データ'),__ldW(jget('musicDifficulties.json'),'難易度データ'),__ldW(jget('musicTags.json').catch(()=>[]),'タグデータ')]);
                 songs=m;d.forEach(x=>(diffs[x.musicId]??={})[x.musicDifficulty]=x);t.forEach(x=>(tags[x.musicId]??=new Set()).add(x.musicTag));
-                $('#unit').disabled=!t.length;if(!t.length&&q.unit!=='all'){q.unit='all';$('#unit').value='all'}st('');drawList();route();drawHome();kcAuto();
-              }catch(e){st('楽曲データを取得できません。通信状況を確認して再読み込みしてください')}
+                $('#unit').disabled=!t.length;if(!t.length&&q.unit!=='all'){q.unit='all';$('#unit').value='all'}st('');drawList();route();drawHome();kcAuto();if(window.__ldDone)__ldDone();
+              }catch(e){if(window.__ldFail)__ldFail();st('楽曲データを取得できません。通信状況を確認して再読み込みしてください')}
             })();
     </script>
   </body>
