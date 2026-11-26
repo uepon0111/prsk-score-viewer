@@ -4121,9 +4121,23 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
       },
       setJacket: function (url) {
         if (!url) return;
+        // sekai.best rejects image requests that carry a foreign Referer
+        // (403), which is why the host app loads jackets with
+        // referrerPolicy='no-referrer'. Mirror that here, and fall back to
+        // a blob fetch if the direct load still fails.
+        var done = function (im) { jacketImg = im; bgDirty = true; maybeComposeV3(); };
         var im = new Image();
         im.crossOrigin = 'anonymous';
-        im.onload = function () { jacketImg = im; bgDirty = true; maybeComposeV3(); };
+        im.referrerPolicy = 'no-referrer';
+        im.onload = function () { done(im); };
+        im.onerror = function () {
+          fetch(url, { referrerPolicy: 'no-referrer' }).then(function (r) { return r.blob(); })
+            .then(function (b) {
+              var im2 = new Image();
+              im2.onload = function () { done(im2); };
+              im2.src = URL.createObjectURL(b);
+            }).catch(function () {});
+        };
         im.src = url;
       },
       setConfig: function (c) { for (var k in c) cfg[k] = c[k]; },
