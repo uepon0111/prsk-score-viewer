@@ -1785,7 +1785,23 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
     return total;
   }
 
-  window.SekaiSUS = { parseSUS, accumulateDuration, accumulateScaledDuration, accumulateTicks, TPB };
+  // Completeness validation for transactional chart loading: a truncated or
+  // corrupt SUS yields degenerate holds (closed with end == start because the
+  // real end event never arrived). Such a chart must never be displayed.
+  function validateScore(score) {
+    if (!score || !score.notes || score.notes.size === 0) return 'empty';
+    if (!score.tempos || score.tempos.length === 0 || !(score.maxTick > 0)) return 'no-tempo';
+    for (const hold of score.holdNotes.values()) {
+      const startNote = score.notes.get(hold.start.id);
+      const endNote = score.notes.get(hold.end);
+      if (!startNote || !endNote || endNote.type !== 'holdEnd' || !(endNote.tick > startNote.tick)) {
+        return 'unclosed-hold';
+      }
+    }
+    return null;
+  }
+
+  window.SekaiSUS = { parseSUS, accumulateDuration, accumulateScaledDuration, accumulateTicks, validateScore, TPB };
 })();
 
 // DrawData precomputation: a faithful port of sekai-mmw-preview-web's
@@ -2063,10 +2079,15 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
     TOUCH_SPRITES = D.touchSprites, TRANSFORMS = D.transforms;
 
   // Sprite indices (NoteSpriteIndex enum order)
+  // Sprite indices into MMW_DATA.noteSprites. NOTE: the generated table keeps
+  // the native resource order, in which the critical "among" diamonds come
+  // BEFORE the normal ones (7 = long_among_crtcl, 8 = long_among,
+  // 9 = friction_among_crtcl, 10 = friction_among_long) — mapping these by
+  // name order instead swaps the normal/critical diamond colors.
   const SPR = {
     CRITICAL: 0, FLICK: 1, LONG: 2, TAP: 3, FRICTION: 4, FRICTION_CRITICAL: 5,
-    FRICTION_FLICK: 6, LONG_AMONG: 7, LONG_AMONG_CRITICAL: 8, FRICTION_AMONG: 9,
-    FRICTION_AMONG_CRITICAL: 10, FRICTION_AMONG_FLICK: 11,
+    FRICTION_FLICK: 6, LONG_AMONG: 8, LONG_AMONG_CRITICAL: 7, FRICTION_AMONG: 10,
+    FRICTION_AMONG_CRITICAL: 9, FRICTION_AMONG_FLICK: 11,
     ARROW_01: 12, ARROW_CRIT_01: 24, SIMULTANEOUS: 36,
   };
   const TR = { NOTE_LEFT: 0, NOTE_MID: 1, NOTE_RIGHT: 2, DIAMOND: 3, ARROW_LEFT1: 4, ARROW_UP1: 10, SIMULT: 16, HOLD_TICK: 17 };
@@ -2156,9 +2177,18 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
     if (note.critical) return SPR.FRICTION_AMONG_CRITICAL;
     return note.flick !== 'none' ? SPR.FRICTION_AMONG_FLICK : SPR.FRICTION_AMONG;
   }
+  // Flick arrow sprites by width (1..6). The generated table interleaves the
+  // diagonal variants irregularly (native resource order), so use explicit
+  // tables: normal straight/diagonal and critical straight/diagonal.
+  const ARROW_TABLE = {
+    nS: [12, 14, 16, 18, 20, 22], nD: [25, 27, 17, 19, 21, 23],
+    cS: [24, 26, 28, 30, 32, 34], cD: [13, 15, 29, 31, 33, 35],
+  };
   function getFlickArrowSpriteIndex(note) {
-    const start = note.critical ? SPR.ARROW_CRIT_01 : SPR.ARROW_01;
-    return start + (Math.min(note.width, 6) - 1) * 2 + (note.flick !== 'default' ? 1 : 0);
+    const w = clamp(Math.min(note.width, 6), 1, 6) - 1;
+    const diag = note.flick !== 'default';
+    return note.critical ? (diag ? ARROW_TABLE.cD[w] : ARROW_TABLE.cS[w])
+      : (diag ? ARROW_TABLE.nD[w] : ARROW_TABLE.nS[w]);
   }
 
   // ---- GL setup ------------------------------------------------------------
@@ -2908,9 +2938,16 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
     switch (mc.m) {
       case 2: return [lerp(mc.lo[0], mc.hi[0], lr), lerp(mc.lo[1], mc.hi[1], lr), lerp(mc.lo[2], mc.hi[2], lr), lerp(mc.lo[3], mc.hi[3], lr)];
       case 4: {
+        // Random (Unity MinMaxGradient "Random Color"): the gradient is a
+        // continuous ramp sampled at the particle's random ratio — NOT a
+        // discrete snap to a keyframe. Snapping (the C++ fan port's shortcut)
+        // makes ~1/3 of grains take an endpoint key at full saturation
+        // (pure red on critical profiles, pure cyan on normal ones), which
+        // breaks the normal-vs-critical color distinction the game shows:
+        // critical grains read as a white→gold continuum, normal grains as
+        // their type color continuum.
         if (!mc.a || !mc.a.length) return WHITE;
-        const k = mc.a[clamp(Math.floor(mc.a.length * lr), 0, mc.a.length - 1)];
-        return [k[1], k[2], k[3], k[4]];
+        return colorAt(mc.a, lr);
       }
       case 1: return colorAt(mc.a, time);
       case 3: {
@@ -3763,6 +3800,20 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
     var score = null, drawData = null, lastNow = -1;
     var scaled = null, scaledPlain = null, duration = 0, drawKey = null;
     var ready = false, jacketImg = null, defaultImg = null, bgDirty = false;
+    // Chart loading is transactional: setScore stages the parsed chart and
+    // commits it atomically only when the data validates as complete AND the
+    // engine textures are ready. Until the commit, render() reports not-ready
+    // so a partial or corrupt chart is never displayed.
+    var pendingTx = null, committed = false;
+    function tryCommit() {
+      if (!pendingTx || !ready) return;
+      score = pendingTx.score;
+      duration = pendingTx.duration;
+      pendingTx = null;
+      committed = true;
+      drawKey = null; lastNow = -1;
+      fx.setScore(score); fx.reset();
+    }
     var cfg = { noteSpeed: 6, mirror: false, holdAlpha: 1, guideAlpha: 1, ap: 0, sf: true, rate: 1, rk: 'all' };
     var BASES = ['assets/', 'https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/assets/'];
     function loadImg(path) {
@@ -3798,12 +3849,21 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
     var api = {
       onReady: null, onFail: null,
       setScore: function (text) {
+        // Stage only — nothing becomes visible here. A chart that fails to
+        // parse or fails completeness validation is rejected outright.
         try {
-          score = window.SekaiSUS.parseSUS(text);
-          duration = Math.max(0.001, window.SekaiSUS.accumulateDuration(score.maxTick, score.tempos));
-          fx.setScore(score);
-          drawKey = null; lastNow = -1;
-        } catch (e) { score = null; }
+          // A complete SUS file ends with a newline; a download cut short
+          // mid-line does not. (Hold validation below catches the rest.)
+          if (typeof text !== 'string' || !/\n$/.test(text)) { pendingTx = null; return; }
+          var s = window.SekaiSUS.parseSUS(text);
+          var invalid = window.SekaiSUS.validateScore(s);
+          if (invalid) { pendingTx = null; return; }
+          pendingTx = {
+            score: s,
+            duration: Math.max(0.001, window.SekaiSUS.accumulateDuration(s.maxTick, s.tempos)),
+          };
+          tryCommit();
+        } catch (e) { pendingTx = null; }
       },
       setJacket: function (url) {
         if (!url) return;
@@ -3815,7 +3875,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
       setConfig: function (c) { for (var k in c) cfg[k] = c[k]; },
       isReady: function () { return ready; },
       render: function (now) {
-        if (!ready || !score) return false;
+        if (!ready || !committed || !score) return false;
         rebuild();
         if (!drawData) return false;
         var cw = canvas.clientWidth, ch = canvas.clientHeight;
@@ -3854,6 +3914,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
       defaultImg = imgs[5];
       bgDirty = true;
       ready = true;
+      tryCommit();
       if (api.onReady) api.onReady();
     }).catch(function () {
       if (api.onFail) api.onFail();
