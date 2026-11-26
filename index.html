@@ -320,6 +320,14 @@
                 <input id="plAo" type="range" min="-3" max="3" step="0.01" />
                 <div class="mut">＋で音が早く、−で遅くなります</div>
               </div>
+              <div class="fld">
+                <label for="plAoMs">
+                  <span>手動オフセット（ms）</span>
+                  <b id="plAoMsV"></b>
+                </label>
+                <input id="plAoMs" type="range" min="-500" max="500" step="1" />
+                <div class="mut">出力遅延の自動補正（AudioContext の outputLatency / baseLatency）と、再生画面のタップキャリブレーション結果に加えて適用されます。Bluetooth 等の環境差はまず再生画面のキャリブレーションで測るのがおすすめです。</div>
+              </div>
             </div>
             <div>
               <h3>ノーツの見え方</h3>
@@ -345,6 +353,34 @@
                   <span>ソフランなし（速度変化を無効にする）</span>
                   <input id="plSf" type="checkbox" />
                 </label>
+              </div>
+              <div class="fld">
+                <label for="plSkin"><span>ノーツスキン</span></label>
+                <select id="plSkin">
+                  <option value="notes_01">notes_01</option>
+                  <option value="notes_02">notes_02</option>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="plFx"><span>エフェクトパターン</span></label>
+                <select id="plFx">
+                  <option value="0">パターン 0</option>
+                  <option value="1">パターン 1</option>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="plBgB">
+                  <span>背景の明るさ</span>
+                  <b id="plBgBV"></b>
+                </label>
+                <input id="plBgB" type="range" min="0" max="150" step="1" />
+              </div>
+              <div class="fld">
+                <label for="plCover">
+                  <span>ステージカバーの不透明度</span>
+                  <b id="plCoverV"></b>
+                </label>
+                <input id="plCover" type="range" min="0" max="100" step="1" />
               </div>
             </div>
           </div>
@@ -1021,7 +1057,7 @@
             const pref=clamp;
             const vs=()=>({slideOpacity:cfg.sl/100,guideOpacity:cfg.gd/100,mirror:cfg.mirror});
             /* 譜面再生の設定。再生画面（openPlayer）と設定画面の両方がこれを読む（スライド/ガイドの透明度とミラーは「表示の設定」と共通） */
-            const playPrefs=()=>{const pp=loadPrefs().player||{},ab=pp.apb!=null?pp.apb:pp.ap!=null?100-pp.ap:null /* 新：apb＝レーン奥からの%。旧設定 ap（見える範囲%・100=全体）は 100-ap に読み替え */;return{spd:Math.round(pref(pp.spd,6,1,12)*100)/100,rate:Math.round(pref(pp.rate,1,.25,1)*100)/100,ap:Math.round(pref(ab,0,0,100)),sf:pp.sf==null?true:!!pp.sf,rk:pp.rk==='keep'?'keep':'all',sl:vs().slideOpacity,gd:vs().guideOpacity,mirror:vs().mirror,ao:Math.round(pref(pp.aoff,0,-3,3)*100)/100,vol:pref(pp.vol,1,0,1),dv:pp.dv==='virtual_singer'?'virtual_singer':'sekai',vw:pp.vw==='game'?'game':'flat'}};
+            const playPrefs=()=>{const pp=loadPrefs().player||{},ab=pp.apb!=null?pp.apb:pp.ap!=null?100-pp.ap:null /* 新：apb＝レーン奥からの%。旧設定 ap（見える範囲%・100=全体）は 100-ap に読み替え */;return{spd:Math.round(pref(pp.spd,6,1,12)*100)/100,rate:Math.round(pref(pp.rate,1,.25,1)*100)/100,ap:Math.round(pref(ab,0,0,100)),sf:pp.sf==null?true:!!pp.sf,rk:pp.rk==='keep'?'keep':'all',sl:vs().slideOpacity,gd:vs().guideOpacity,mirror:vs().mirror,ao:Math.round(pref(pp.aoff,0,-3,3)*100)/100,vol:pref(pp.vol,1,0,1),dv:pp.dv==='virtual_singer'?'virtual_singer':'sekai',vw:pp.vw==='game'?'game':'flat',skin:pp.skin==='notes_02'?'notes_02':'notes_01',fxPat:pp.fxPat===1?1:0,bgBright:Math.round(pref(pp.bgBright,80,0,150)),cover:Math.round(pref(pp.cover,85,0,100)),aoMs:Math.round(pref(pp.aoMs,0,-500,500)),calibMs:Math.round(pref(pp.calibMs,0,0,1000))}};
             const st=t=>{const e=$('#st');e.textContent=t;e.hidden=!t;clearTimeout(stT);if(t&&!/…$/.test(t))stT=setTimeout(()=>e.hidden=true,6000)};
             const jget=async u=>{try{const r=await fetch(MASTER+u);if(!r.ok)throw 0;kcM('master/'+u,r.clone());return await r.json()}catch(e){const c=await CC.get('master/'+u);if(c)return c.json();throw e}}; /* 通信優先・失敗時はキャッシュ */
             const fd=ms=>{if(!ms)return'-';const d=new Date(ms);return`${d.getFullYear()}/${pad(d.getMonth()+1,2)}/${pad(d.getDate(),2)}`};
@@ -1191,11 +1227,23 @@
                ・ソフラン：TIL(HISPEED)の速度を実時間で積分した「スクロール位置」で配置する（ゲーム内と同じ考え方）。
                  ノーツはレイヤー(HISPEED ID)ごとに別のスクロール位置を持ち、小節線は MEASUREHS のレイヤーに従う。
                ・ノーツ見た目は既存の body/arrow/trc/gem をスプライト化して再利用（譜面表示と同一）。 */
+            /* ================= DrawData の完全事前計算（v2） =================
+               旧 buildPlay の分類規則（render() と一致）をそのまま使い、分類が終わった
+               時点で「描画に必要なものは全部」ここで計算してしまう。
+               - テンポマップ（小節→拍→秒）とソフラン（レイヤー別スクロール位置
+                 S(t)=∫speed dt）を読み込み時に畳み込み、各ノーツに
+                 時刻 t と見た目の位置 q（visualTime 相当）を持たせる。
+                 ハイスピードは S(t) そのものなので、再生側は q の差分を
+                 「あと何秒分のスクロールか」に読み替えるだけでよい。
+               - 同時押し線、ロングの帯の分割済みポリゴン（ベジェを (レーン,q)
+                 空間でサンプリングした左右縁の列）、ホールドの刻み（1/8小節
+                 ティック＋中継宝石の中心位置）もここで確定させる。
+               再生側（playerMain）のフレーム処理は「今見える範囲を二分探索で
+               選び、WASM で投影して GPU に渡す」だけになる。 */
             function buildPlay(S){
-             const{notes,ev}=S,nodes=[],chains=[],relayDrawn=new Set(),SPR=new Map(),cmb=[];let defs='';
-             const sp=(key,make)=>{let i=SPR.get(key);if(!i){i='p'+SPR.size;SPR.set(key,i);defs+=`<g id="${i}">${make()}</g>`}return i};
-             const gm=k=>sp('g'+k,()=>gem(0,0,k));
-             /* スライド経路（render() と同じ分解）。中継点の宝石は経路上の位置に描く。 */
+             const{notes,ev}=S,relayDrawn=new Set(),cmb=[];
+             /* ---- スライド経路の分解（旧 buildPlay と同じ規則） ---- */
+             const chainSrc=[];
              notes.filter(n=>n.k==='sl'&&n.t===1).forEach(start=>{
               let cur=start;const segs=[],relays=[],seen=new Set([start]);
               while(cur&&cur.t!==2&&cur.next&&!seen.has(cur.next)){
@@ -1203,139 +1251,264 @@
                segs.push([cur,r.node]);relays.push(...r.relays);cur=r.node;seen.add(cur);
               }
               if(!segs.length)return;
-              {const tl=segs[segs.length-1][1];if(!start.deco&&tl.t===2){for(let k=Math.floor((start.bar+1e-9)*8)+1;k/8<tl.bar-1e-9;k++)cmb.push(k/8)}} /* ホールド中の自動判定：頭と尾の間の1/8小節ごと（render() と同じ規則） */
+              const tickBars=[];
+              {const tl=segs[segs.length-1][1];if(!start.deco&&tl.t===2){for(let k=Math.floor((start.bar+1e-9)*8)+1;k/8<tl.bar-1e-9;k++)tickBars.push(k/8)}}
+              tickBars.forEach(b=>cmb.push(b));
               const r=[];
               relays.forEach(m=>{
                if(none(m)||m.deco)return;
                const e=segs.findIndex(([a,b])=>a.bar<=m.bar+1e-9&&m.bar<=b.bar+1e-9);
-               if(e>=0){relayDrawn.add(m);r.push([m.bar,e,gm(crit(m)?'crit':'long'),m.hs??null,crit(m)?1:0])}
+               if(e>=0){relayDrawn.add(m);r.push([m.bar,e,crit(m)?1:0,m.hs??null])}
               });
-              chains.push({h:start.hs??null,cr:crit(start),deco:!!start.deco,p:[start,...segs.map(s=>s[1])].map(q=>[q.bar,q.lane-2,q.w,q.hs??null]),e:segs.map(s=>s[0].dir?s[0].dir.t:null),r});
+              chainSrc.push({h:start.hs??null,cr:crit(start),deco:!!start.deco,
+               p:[start,...segs.map(s=>s[1])].map(q=>[q.bar,q.lane-2,q.w,q.hs??null]),
+               e:segs.map(s=>s[0].dir?s[0].dir.t:null),r,tickBars});
              });
-             /* 単体ノーツ（render() の notes.forEach と同じ分類）。s=本体スプライト, a=その上に重ねるスプライト */
+             /* ---- 単体ノーツの分類（旧 buildPlay と同じ規則。s/a スプライトは
+                    アトラスの役割名に置き換えたので、ここでは種別だけを確定する） ---- */
+             const nodeSrc=[];
              notes.forEach(n=>{
               if(none(n))return;
-              const w=Math.max(4,n.w*LW-2),cr=crit(n),tr=trend(n),k=n.k,d=flickAngleOf(n),ck=cr?'crit':'flick',sd=d!==null;
-              const B=kind=>sp('b'+kind+w,()=>body(0,0,w,kind)),T=f=>sp('t'+(+cr)+(+f)+w,()=>trc(-w/2,0,w,cr,f)),A=ang=>sp(`a${n.w}|${ang}|${ck}`,()=>arrow(0,0,n.w,ang,ck));
-              const add=(s,a,m)=>nodes.push({b:n.bar,x:(n.lane-2)*LW,w:n.w,h:n.hs??null,s,a,m}); /* m=[種別,クリティカル,矢印角度|null]（ゲーム画面用） */
-              let kind;
+              const cr=crit(n),tr=trend(n),k=n.k,d=flickAngleOf(n),sd=d!==null;
+              const add=(kind,ang)=>nodeSrc.push({b:n.bar,lane:n.lane-2,w:n.w,h:n.hs??null,kind,cr:cr?1:0,ang,deco:!!n.deco});
               if(n.deco){
                if(!n.tap)return;
                const at=n.tap.t,df=at===3&&!sd;
-               if(tr)add(null,[T(sd),...(sd||df?[A(sd?d:0)]:[])],['trace',cr?1:0,sd||df?(sd?d:0):null]);
-               else if(at===4)add(B('dmg'),sd?[A(d)]:[],['dmg',0,sd?d:null]);
-               else if(at===3)add(B('flick'),sd||df?[A(sd?d:0)]:[],['flick',cr?1:0,sd||df?(sd?d:0):null]);
-               else add(B(cr?'crit':'tap'),sd?[A(d)]:[],['tap',cr?1:0,sd?d:null]);
+               if(tr)add('trace',sd||df?(sd?d:0):null);
+               else if(at===4)add('dmg',sd?d:null);
+               else if(at===3)add('flick',sd||df?(sd?d:0):null);
+               else add(cr?'crit':'tap',sd?d:null);
                return;
               }
               if(k==='tap'){
-               if(n.t===4)kind='dmg';else if(n.t===3)kind='flick';else if(tr||n.t===1||n.t===2)kind=cr?'crit':'tap';
-               else{add(B('unknown'),[]);return}
-              }else if(k==='dir')kind=cr?'crit':'flick';
-              else{
+               if(n.t===4)add('dmg',null);
+               else if(n.t===3)add('flick',sd?d:null);
+               else if(tr)add('trace',null);
+               else if(n.t===1||n.t===2)add(cr?'crit':'tap',null);
+               else add('unknown',null);
+              }else if(k==='dir'){
+               add(cr?'crit':'flick',sd?d:null);
+              }else{
                if(n.t===5||n.t===0||n.t===4)return;
-               if(n.t===3){if(!relayDrawn.has(n))add(null,[gm(cr?'crit':'long')],['relay',cr?1:0,null]);return}
+               if(n.t===3){if(!relayDrawn.has(n))add('relay',null);return}
                if(n.t!==1&&n.t!==2)return;
-               kind=cr?'crit':n.t===2&&n.dir?'flick':'long';
+               const fl=n.t===2&&!!n.dir&&sd;
+               add(tr?'trace':cr?'crit':n.t===2&&n.dir?'flick':'long',fl?(sd?d:0):null);
               }
-              const fl=(k==='dir'&&sd)||(k==='tap'&&n.t===3)||(k==='sl'&&n.t===2&&!!n.dir&&sd);
-              add(tr?null:B(kind),[...(tr?[T(fl)]:[]),...(fl?[A(sd?d:0)]:[])],[kind==='dmg'?'dmg':tr?'trace':kind==='flick'?'flick':k==='sl'?'long':'tap',cr?1:0,fl?(sd?d:0):null]);
              });
-             nodes.sort((a,b)=>a.b-b.b);
-             /* コンボになる判定（render() の集計と同じ規則）：タップ/フリック/トレース、スライドの頭・尾・中継点。ダメージ・ガイド・透明ノーツは数えない */
              notes.forEach(n=>{if(none(n)||n.deco)return;const t=n.t;if(n.k==='tap'?[1,2,3,5,6].includes(t):n.k==='dir'||(n.k==='sl'&&(t===1||t===2||t===3)))cmb.push(n.bar)});
              let mb=0;notes.forEach(n=>mb=Math.max(mb,n.bar));ev.forEach(e=>mb=Math.max(mb,e.bar));
-             return{nodes,chains,cmb:cmb.sort((a,b)=>a-b),sprites:defs,total:Math.floor(mb+1e-9)+1,mhs:S.mhs,til:S.til,
-              lens:ev.filter(e=>e.len).map(e=>[e.bar,e.len]),bpm:ev.filter(e=>e.bpm!==undefined).map(e=>[e.bar,e.bpm])};
+             const total=Math.floor(mb+1e-9)+1;
+             /* ---- テンポマップ：小節→拍→秒（旧 playerMain の計算を読み込み時へ移設） ---- */
+             const len=[],cum=[0];
+             {const l=ev.filter(e=>e.len).map(e=>[e.bar,e.len]).sort((a,b)=>a[0]-b[0]);let i=0,c=4;for(let b=0;b<=total+1;b++){while(i<l.length&&l[i][0]<=b)c=l[i++][1];len[b]=c;cum[b+1]=cum[b]+c}}
+             const cb=B=>{const m=Math.min(Math.max(Math.floor(B+1e-9),0),total+1);return cum[m]+(B-m)*len[m]};
+             const bp=ev.filter(e=>e.bpm!==undefined).map(e=>[e.bar,e.bpm]).sort((a,b)=>a[0]-b[0]);
+             if(!bp.length)bp.push([0,120]);else if(cb(bp[0][0])>1e-9)bp.unshift([0,bp[0][1]]);
+             const bx=bp.map(e=>cb(e[0])),bs=[0];for(let i=1;i<bp.length;i++)bs[i]=bs[i-1]+(bx[i]-bx[i-1])*60/bp[i-1][1];
+             const tm=B=>{const x=cb(B);let i=0;while(i+1<bx.length&&bx[i+1]<=x+1e-9)i++;return bs[i]+(x-bx[i])*60/bp[i][1]};
+             const barTimes=[];for(let b=0;b<=total+1;b++)barTimes.push(tm(b));
+             /* ---- ソフラン：レイヤー別スクロール位置の区間表（読み込み時に積分） ---- */
+             const mkSegs=l=>{
+              const T=[],V=[],P=[];let p=0,pt=0,v=1;
+              (l||[]).slice().sort((a,b)=>a[0]-b[0]).forEach(([b,s])=>{const t=tm(b);p+=v*(t-pt);pt=t;v=s;T.push(t);V.push(s);P.push(p)});
+              return{T,V,P};
+             };
+             const qOf=(segs,t)=>{
+              if(!segs||!segs.T.length)return t;
+              const{T,V,P}=segs;let lo=0,hi=T.length-1,i=-1;
+              while(lo<=hi){const m=(lo+hi)>>1;if(T[m]<=t){i=m;lo=m+1}else hi=m-1}
+              return i<0?t:P[i]+V[i]*(t-T[i]);
+             };
+             const speedOf=(segs,t)=>{
+              if(!segs||!segs.T.length)return 1;
+              const{T,V}=segs;let lo=0,hi=T.length-1,i=-1;
+              while(lo<=hi){const m=(lo+hi)>>1;if(T[m]<=t){i=m;lo=m+1}else hi=m-1}
+              return i<0?1:V[i];
+             };
+             const segCache=new Map();
+             const layerSegs=h=>{
+              if(h==null)return null;
+              if(!segCache.has(h))segCache.set(h,S.til&&S.til[h]?mkSegs(S.til[h]):null);
+              return segCache.get(h);
+             };
+             const R3=v=>Math.round(v*1000)/1000,R4=v=>Math.round(v*10000)/10000;
+             /* ---- ノーツ： t と q を確定 ---- */
+             const nodes=nodeSrc.map(n=>{
+              const t=tm(n.b),segs=layerSegs(n.h);
+              return{t:R4(t),q:R4(qOf(segs,t)),lane:n.lane,w:n.w,kind:n.kind,cr:n.cr,ang:n.ang,deco:n.deco?1:0,layer:n.h};
+             }).sort((a,b)=>a.q-b.q);
+             /* ---- 同時押し線：同一時刻・同一レイヤーで2つ以上 → 端から端までの線 ---- */
+             const simLines=[];
+             {const g=new Map();
+              nodes.forEach(n=>{if(n.deco)return;const k=n.t.toFixed(4)+'|'+n.layer;let a=g.get(k);if(!a)g.set(k,a=[]);a.push(n)});
+              for(const a of g.values()){
+               if(a.length<2)continue;
+               const x0=Math.min(...a.map(n=>n.lane)),x1=Math.max(...a.map(n=>n.lane+n.w));
+               if(x1-x0<=Math.max(...a.map(n=>n.w)))continue;
+               simLines.push({t:a[0].t,q:a[0].q,layer:a[0].layer,x0,x1});
+              }}
+             /* ---- チェイン：帯ポリゴンの事前分割＋ホールド刻み ---- */
+             const chains=chainSrc.map(c=>{
+              const pts=c.p.map(p=>{
+               const t=tm(p[0]),segs=layerSegs(p[3]);
+               return{b:p[0],t:R4(t),q:R4(qOf(segs,t)),lane:p[1],w:p[2],layer:p[3]};
+              });
+              /* 帯：区間ごとにベジェ左右縁を (レーン,小節) 空間で 8 分割サンプリングし、
+                 各サンプルの小節位置を t と q の両方へ変換して持つ。
+                 → ソフラン ON/OFF どちらの表示でも帯を組み直さずに使える。
+                 band の並びは [左レーン, q, 右レーン, t] × サンプル数。 */
+              const lx=i=>pts[i].lane+(c.deco?0:0.05),rx=i=>pts[i].lane+pts[i].w-(c.deco?0:0.05);
+              const band=[];
+              for(let i=0;i<pts.length-1;i++){
+               const b0=pts[i].b,b1=pts[i+1].b,mb2=(b0+b1)/2,ein=c.e[i]===2,eout=c.e[i]===5||c.e[i]===6;
+               const cl=[[lx(i),b0],[lx(i),ein?mb2:b0],[lx(i+1),eout?mb2:b1],[lx(i+1),b1]];
+               const crv=[[rx(i),b0],[rx(i),ein?mb2:b0],[rx(i+1),eout?mb2:b1],[rx(i+1),b1]];
+               const SEG=8,segsB=layerSegs(pts[i].layer);
+               for(let j=i===0?0:1;j<=SEG;j++){
+                 const u=j/SEG,L=cubicPoint(cl,u),Rr=cubicPoint(crv,u),bar=L[1],t=tm(bar);
+                 band.push(R3(L[0]),R3(qOf(segsB,t)),R3(Rr[0]),R3(t));
+               }
+              }
+              /* 帯の q における左右縁（刻み・宝石の中心計算用） */
+              const edgeAt=q=>{
+               let best=null;
+               for(let i=0;i<band.length;i+=4){
+                 if(best&&band[i+1]>q)break;
+                 best=[band[i],band[i+2]];
+                 if(band[i+1]>=q)break;
+               }
+               return best||[pts[0].lane,pts[0].lane+pts[0].w];
+              };
+              const ticks=c.tickBars.map(b=>{
+               const t=tm(b),segs=layerSegs(c.h),q=qOf(segs,t),e=edgeAt(q);
+               return{t:R4(t),q:R4(q),cx:R3((e[0]+e[1])/2),w:R3(e[1]-e[0])};
+              });
+              const relays=c.r.map(r=>{
+               const t=tm(r[0]),segs=layerSegs(r[3]),q=qOf(segs,t),e=edgeAt(q);
+               return{t:R4(t),q:R4(q),cx:R3((e[0]+e[1])/2),cr:r[2],seg:r[1]};
+              });
+              return{cr:c.cr?1:0,deco:c.deco?1:0,layer:c.h,pts,band,ticks,relays,
+               q0:pts[0].q,q1:pts[pts.length-1].q,t0:pts[0].t,t1:pts[pts.length-1].t};
+             });
+             /* ---- 拍線（マスターレイヤーの q で事前計算） ---- */
+             const mSegs=S.mhs!=null?layerSegs(S.mhs):null;
+             const beats=[];
+             for(let m=0;m<=total;m++)for(let k=0;k<len[m];k++){
+               const t=tm(m+k/len[m]);
+               beats.push({t:R4(t),q:R4(qOf(mSegs,t)),bar:m,maj:k===0?1:0});
+             }
+             beats.sort((a,b)=>a.q-b.q);
+             /* ---- 終端・尺 ---- */
+             let chartEnd=0;
+             nodes.forEach(n=>chartEnd=Math.max(chartEnd,n.t));
+             chains.forEach(c=>chartEnd=Math.max(chartEnd,c.t1));
+             const hitTimes=cmb.map(b=>R4(tm(b))).sort((a,b)=>a-b);
+             return{v:2,nodes,chains,simLines,beats,hitTimes,total,barTimes:barTimes.map(R4),
+              bpmSegs:bp.map((e,i)=>[R4(bs[i]),e[1]]),lens:len.slice(0,total+1),
+              duration:R4(chartEnd+1.5),chartEnd:R4(chartEnd),mhs:S.mhs,
+              speedSegs:Object.fromEntries([...segCache].map(([k,v])=>[k,v]))};
             }
             /* 再生画面本体。toString() で別タブへ丸ごと渡すため、親ページの変数は参照しない
                （cubicPoint / cubicXAtY だけは別タブ側に同名で注入する）。 */
             function playerMain(D){
              'use strict';
-             const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg',LW=20,ML=40,SW=12*LW,VW=ML+SW+16,VH=560,JY=480,LEAD=1.6,TT=v=>Math.max(.1,3.1-.25*v);
-             /* ノーツ速度：T=3.1-0.25v（T=表示開始位置100%の位置から判定線まで進む時間[秒]、v=ノーツ速度）。
-                表示開始位置を奥から離しても速さは常に最奥の位置（奥から0%）を基準に決める（手前から現れるだけで速さは変わらない）。pps=JY/T */
-             const el=(tag,at,p)=>{const e=document.createElementNS(NS,tag);for(const k in at)e.setAttribute(k,at[k]);if(p)p.appendChild(e);return e};
-             const setT=(e,s)=>{if(e._s!==s){e._s=s;e.textContent=s}};
-             /* ---- 小節→拍→秒 ---- */
-             const total=D.total,len=[],cum=[0];
-             {const l=D.lens.slice().sort((a,b)=>a[0]-b[0]);let i=0,c=4;for(let b=0;b<=total+1;b++){while(i<l.length&&l[i][0]<=b)c=l[i++][1];len[b]=c;cum[b+1]=cum[b]+c}}
-             const cb=B=>{const m=Math.min(Math.max(Math.floor(B+1e-9),0),total+1);return cum[m]+(B-m)*len[m]};
-             const bp=D.bpm.slice().sort((a,b)=>a[0]-b[0]);if(!bp.length)bp.push([0,120]);else if(cb(bp[0][0])>1e-9)bp.unshift([0,bp[0][1]]);
-             const bx=bp.map(e=>cb(e[0])),bs=[0];for(let i=1;i<bp.length;i++)bs[i]=bs[i-1]+(bx[i]-bx[i-1])*60/bp[i-1][1];
-             const tm=B=>{const x=cb(B);let i=0;while(i+1<bx.length&&bx[i+1]<=x+1e-9)i++;return bs[i]+(x-bx[i])*60/bp[i][1]};
-             const atT=t=>{t=Math.max(0,t);let i=0;while(i+1<bs.length&&bs[i+1]<=t)i++;const x=bx[i]+(t-bs[i])*bp[i][1]/60;let m=0;while(m<total+1&&cum[m+1]<=x)m++;return{bar:m+(x-cum[m])/len[m],bpm:bp[i][1]}};
-             /* ---- ソフラン：レイヤーごとの「スクロール位置」S(t)=∫speed dt。f(t,1) は現在の速度 ---- */
-             const mkS=l=>{const T=[],V=[],P=[];let p=0,pt=0,v=1;l.slice().sort((a,b)=>a[0]-b[0]).forEach(([b,s])=>{const t=tm(b);p+=v*(t-pt);pt=t;v=s;T.push(t);V.push(s);P.push(p)});
-              return(t,g)=>{let lo=0,hi=T.length-1,i=-1;while(lo<=hi){const m=(lo+hi)>>1;if(T[m]<=t){i=m;lo=m+1}else hi=m-1}return g?(i<0?1:V[i]):i<0?t:P[i]+V[i]*(t-T[i])}};
-             let sf=D.pf.sf;const SL={},ident=(t,g)=>g?1:t,lay=h=>!sf||h==null?ident:SL[h]||ident;
-             for(const k in D.til)SL[k]=mkS(D.til[k]);
-             const N=D.nodes,C=D.chains,LN=[],NLAY=[],FLAY=[],QC=new Map();const mono=a=>{for(let i=1;i<a.length;i++)if(a[i-1]._i>a[i]._i)return false;return true};
-             N.forEach(n=>n.t=tm(n.b));const prep=()=>{NLAY.length=0;{const g=new Map();const g2=new Map();N.forEach((n,i)=>{n._i=i;n.q=lay(n.h)(n.t);let b=g2.get(n.h);if(!b)g2.set(n.h,b=[]);b.push(n);if(n.m){let a=g.get(n.h);if(!a)g.set(n.h,a=[]);a.push(n)}});for(const[h,a]of g){a.sort((x,y)=>x.q-y.q);a._m=mono(a);NLAY.push([h,a])}FLAY.length=0;for(const[h,a]of g2){a.sort((x,y)=>x.q-y.q);a._m=mono(a);FLAY.push([h,a])}} /* ゲーム画面用：レイヤーごとにスクロール位置順 */
-             C.forEach(c=>{c.Q=c.p.map(p=>lay(p[3])(tm(p[0])));c._qa=Math.min(...c.Q);c._qb=Math.max(...c.Q);c._one=c.p.every(p=>p[3]===c.p[0][3]);c.R=c.r.map(r=>({q:lay(r[3])(tm(r[0])),e:r[1],s:r[2],h:r[3],k:r[4]}))});LN.length=0;for(let m=0;m<=total;m++)for(let k=0;k<len[m];k++)LN.push({q:lay(D.mhs)(tm(m+k/len[m])),m,maj:!k});LN.sort((a,b)=>a.q-b.q)};prep();
-             let dur=0;N.forEach(n=>dur=Math.max(dur,n.t));C.forEach(c=>dur=Math.max(dur,tm(c.p[c.p.length-1][0])));dur+=1.5;
-
-             const cnt=new Map();N.forEach(n=>cnt.set(n.h,(cnt.get(n.h)||0)+1));
-             const mainH=[...cnt].sort((a,b)=>b[1]-a[1]).map(e=>e[0])[0]??null;
-             /* ---- ステージ ---- */
-             const stage=$('stage'),defs=stage.querySelector('defs');stage.setAttribute('viewBox',`0 0 ${VW} ${VH}`);
-             const clp=el('rect',{x:-6,y:0,width:SW+12,height:JY+2},el('clipPath',{id:'clipH'},defs));
-             for(const[id,c,k]of[['gGl','82,250,162',1],['gGc','255,188,39',.874]]){const g=el('linearGradient',{id,gradientUnits:'userSpaceOnUse',x1:0,y1:0,x2:0,y2:JY},defs);el('stop',{offset:0,'stop-color':`rgb(${c})`,'stop-opacity':0},g);el('stop',{offset:1,'stop-color':`rgb(${c})`,'stop-opacity':k},g)} /* ガイド：奥は透明・判定線で最大（ゲーム画面と同じ） */
-             const root=el('g',{transform:`translate(${ML} 0)`},stage),bg=el('g',{},root);
-             for(let i=0;i<12;i++)el('rect',{x:i*LW,y:0,width:LW,height:JY,fill:i%2?'#19263a':'#1d2c42'},bg);
-             for(let i=0;i<=12;i++)el('line',{x1:i*LW,x2:i*LW,y1:0,y2:JY,stroke:'#394b63','stroke-width':i%12?1:1.5},bg);
-             el('rect',{x:-6,y:JY,width:SW+12,height:VH-JY,fill:'#0d1524'},bg);
-             const gL=el('g',{},root),gX=el('g',{},el('g',{'clip-path':'url(#clipH)'},root)),gP=el('g',{},gX),gN=el('g',{},gX),gA=el('g',{},gX);
-             /* 表示開始位置より奥は背景色で隠し、境界に線を引く（0%のときは非表示） */
-             const cov=el('rect',{x:-ML,y:0,width:VW,height:0,fill:'#111827'},root),bl=el('rect',{x:-4,y:0,width:SW+8,height:2,rx:1,fill:'#ffa94d'},root);
-             el('rect',{x:-6,y:JY-6,width:SW+12,height:12,fill:'#8ef0e2',opacity:.14},root);
-             el('rect',{x:-4,y:JY-1.5,width:SW+8,height:3,rx:1.5,fill:'#e8fffb',opacity:.92},root);
-             const mkPool=(g,tag,at,fn)=>{const els=[];let used=0;return(l1,l2)=>{const n1=l1.length,n=n1+(l2?l2.length:0);for(let i=0;i<n;i++){let e=els[i];if(!e){e=el(tag,at,g);els.push(e)}else if(i>=used)e.removeAttribute('display');fn(e,i<n1?l1[i]:l2[i-n1])}for(let i=n;i<used;i++)els[i].setAttribute('display','none');used=n}};
-             const useFn=(e,a)=>{if(e._h!==a[0]){e._h=a[0];e.setAttribute('href','#'+a[0])}e.setAttribute('x',a[1].toFixed(1));e.setAttribute('y',a[2].toFixed(1))};
-             const pMin=mkPool(gL,'rect',{x:0,width:SW,height:1,fill:'#2e4058'},(e,y)=>e.setAttribute('y',(y-.5).toFixed(1)));
-             const pMaj=mkPool(gL,'rect',{x:-4,width:SW+4,height:1.6,fill:'#7b91ad'},(e,y)=>e.setAttribute('y',(y-.8).toFixed(1)));
-             const pLab=mkPool(gL,'text',{x:-8,'text-anchor':'end','font-size':11,'font-weight':700,fill:'#d0dbea'},(e,a)=>{e.setAttribute('y',(a[0]+4).toFixed(1));setT(e,String(a[1]))});
-             const pPath=mkPool(gP,'path',{},(e,a)=>{e.setAttribute('d',a[0]);e.setAttribute('fill',a[1]);e.setAttribute('fill-opacity',a[2]);if(a[3]){e.setAttribute('stroke',a[3]);e.setAttribute('stroke-width',a[4]);e.setAttribute('stroke-opacity',a[5])}else e.setAttribute('stroke','none')});
-             const pN=mkPool(gN,'use',{},useFn),pA=mkPool(gA,'use',{},useFn);
-             /* スライド経路：左右の縁を3次ベジェでつなぐ（譜面表示の slideChainPath と同じ形） */
-             const lx=(c,i)=>c.p[i][1]*LW+(c.deco?0:1),rx=(c,i)=>(c.p[i][1]+c.p[i][2])*LW-(c.deco?0:1);
-             const curves=(c,ys,i)=>{const y0=ys[i],y1=ys[i+1],m=(y0+y1)/2,ein=c.e[i]===2,eout=c.e[i]===5||c.e[i]===6;
-              return[[[lx(c,i),y0],[lx(c,i),ein?m:y0],[lx(c,i+1),eout?m:y1],[lx(c,i+1),y1]],[[rx(c,i),y0],[rx(c,i),ein?m:y0],[rx(c,i+1),eout?m:y1],[rx(c,i+1),y1]]]};
-             /* スライド本体の見た目はゲーム画面の slideBody と同じ：中央は濃い色・縁ほど白っぽく明るい／縁の外側に暗線・内側に明線。ガイドは奥が透明な単色 */
-             /* ---- スライド曲線の高速計算 ----
-                縁のベジェは X の制御点が(x0,x0,x1,x1)なので X=x0+(x1-x0)·s(t)、s=3t²-2t³。Y の制御点は ein/eout で 0,[.5],[.5],1 の4通りになり、
-                Y(t)は 直線:s(t)／ein:1.5t-.5t³／eout:1.5t²-.5t³／両方:1.5t-1.5t²+t³。どれも Y→t が閉じた式で解けるので、二分探索(36回)も配列生成も不要。
-                ※ curves() の制御点の作り方を変えたら、ここも合わせること。 */
-             const tIn=f=>2*Math.cos(Math.acos(-f)/3+4.1887902047863905), /* t³-3t+2f=0 の [0,1] の解 */
-              easeS=(f,ein,eout)=>{if(!ein&&!eout)return f;let t;
-               if(ein&&eout){const g=f-.5,r=Math.sqrt(g*g+.0625);t=.5+Math.cbrt((g+r)/2)+Math.cbrt((g-r)/2)}else t=ein?tIn(f):1-tIn(1-f);
-               t=t<0?0:t>1?1:t;return t*t*(3-2*t)},
-              EX=[0,0],YS=[],VIS=[],VN=[],FA={mj:[],mn:[],lb:[],pg:[],pp:[],ga:[],vn:[],va:[]}; /* EX=edgeXの結果置き場／YS以降は毎フレーム使い回す作業用バッファ */
-             const edgeX=(c,ys,i,y)=>{const y0=ys[i],d=ys[i+1]-y0,e=c.e[i];let s=.5;
-              if(Math.abs(d)>=1e-9){let f=(y-y0)/d;f=f<0?0:f>1?1:f;s=easeS(f,e===2,e===5||e===6)}
-              const a=lx(c,i),b=rx(c,i);EX[0]=a+(lx(c,i+1)-a)*s;EX[1]=b+(rx(c,i+1)-b)*s}; /* 区間 i の高さ y での左縁・右縁の X(px) → EX[0],EX[1] */
-             const fq=v=>Math.round(v*10)/10,fp=p=>fq(p[0])+','+fq(p[1]),FBN=8,FBAND=[],FBODY=[['rgb(107,229,188)','rgb(168,235,200)'],['rgb(234,226,153)','rgb(238,233,180)']];
-             for(let j=1;j<FBN;j++)FBAND.push([.5*(FBN-j)/FBN,.73*Math.pow((j+.5)/FBN,1.7)]); /* [縁からの幅の割合, 縁側の明るさ配分] */
-             const fSegs=(c,ys)=>{const a=[];for(let i=0;i<c.p.length-1;i++)a.push(curves(c,ys,i));return a};
-             const fRibbon=(sg,fa,fb)=>{const P=(s,k,f)=>{const l=s[0][k],r=s[1][k];return fq(l[0]+(r[0]-l[0])*f)+','+fq(l[1])},n=sg.length; /* 左縁(0)〜右縁(1)を補間した曲線2本で挟んだ帯（点の配列は作らず文字列を直接組む） */
-              let d='M'+P(sg[0],0,fa);for(const s of sg)d+='C'+P(s,1,fa)+' '+P(s,2,fa)+' '+P(s,3,fa);
-              d+='L'+P(sg[n-1],3,fb);for(let i=n-1;i>=0;i--){const s=sg[i];d+='C'+P(s,2,fb)+' '+P(s,1,fb)+' '+P(s,0,fb)}return d+'Z'};
-             const fEdges=(sg,o)=>{let d='';for(const e of[0,1]){const P=(s,k)=>fq(s[e][k][0]+(e?-o:o))+','+fq(s[e][k][1]);d+='M'+P(sg[0],0);for(const s of sg)d+='C'+P(s,1)+' '+P(s,2)+' '+P(s,3)}return d};
-             /* ---- 状態 ---- */
-             const pf=D.pf;let spd=pf.spd,rate=pf.rate,sl=pf.sl,gd=pf.gd,mir=pf.mirror,pps=JY/TT(spd),ap=pf.ap,tp=0,rk=pf.rk,cur=-LEAD,playing=false,last=0,need=true,raf=0,drag=false;const inv=()=>{need=true;if(!raf&&!document.hidden)raf=requestAnimationFrame(loop)};
-             const KEY='sekaiChartViewer.settings.v1';
-             const FS=D.fs||0;let ao=pf.ao,vl=pf.vol,VL=[],vi=0,ctx,gn,src=null,ab=null,B=0,T0=0,AR=1,gen=0,rtm;
-             const save=()=>{try{const v=JSON.parse(localStorage.getItem(KEY))||{},p={...(v.player||{}),spd,rate,sl,gd,mirror:mir,apb:ap,sf,rk,aoff:ao,vol:vl,vw:view};delete p.vt;delete p.ap;v.player=p;localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}try{if(parent&&parent.__setShared)parent.__setShared({slideOpacity:sl,guideOpacity:gd,mirror:mir})}catch(e){}}; /* 透明度・ミラーはアプリ全体の表示設定にも反映 */
-             /* ---- 音源：ボーカル取得／速度に合わせた音声変換(WSOLA・音程維持)／再生。譜面時刻は音声クロックに同期 ---- */
+             const $=id=>document.getElementById(id),AB=D.assetBase||'';
+             const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+             /* ================= Engine: 状態の一元管理 =================
+                現在時刻・曲の長さ・譜面の終端・開始遅延はここだけが持つ。
+                UI は Engine.getState() を問い合わせ、描画の都合は持ち込まない。 */
+             const LEAD=1.6,FS=D.fs||0;
+             const Engine={
+              time:-LEAD,playing:false,rate:D.pf.rate,
+              duration:D.duration,chartEnd:D.chartEnd,startDelay:LEAD,
+              _lastT:-LEAD,_hitCbs:[],
+              getState(){return{time:this.time,playing:this.playing,rate:this.rate,
+               duration:this.duration,chartEnd:this.chartEnd,startDelay:this.startDelay,
+               combo:this._combo||0}},
+              onHit(cb){this._hitCbs.push(cb)},
+              seek(t){this.time=clamp(t,-LEAD,this.duration);this._lastT=this.time;this._resetHits()},
+              setPlaying(p){this.playing=p},
+              _resetHits(){ /* ヒット発火位置を現在時刻に合わせて組み直す */
+               this._hi=0;while(this._hi<HitList.length&&HitList[this._hi].t<=this.time)this._hi++;
+               this._ci=0;while(this._ci<D.hitTimes.length&&D.hitTimes[this._ci]<=this.time)this._ci++;
+               this._combo=this._ci;
+              },
+              _fireHits(){
+               const from=this._lastT,to=this.time;
+               if(to<from){this._resetHits()}
+               else{
+                while(this._hi<HitList.length&&HitList[this._hi].t<=to){
+                 const h=HitList[this._hi++];
+                 if(h.t>from)for(const cb of this._hitCbs)cb(h);
+                }
+                while(this._ci<D.hitTimes.length&&D.hitTimes[this._ci]<=to)this._ci++;
+                this._combo=this._ci;
+               }
+               this._lastT=to;
+              }
+             };
+             /* ヒット一覧（FX 発火用）: DrawData のノーツとホールド刻みから作る */
+             const HitList=[];
+             D.nodes.forEach(n=>{if(!n.deco&&n.kind!=='unknown'&&n.kind!=='dmg')
+              HitList.push({t:n.t,lane:n.lane+n.w/2,w:n.w,kind:n.kind,cr:n.cr,ang:n.ang})});
+             D.chains.forEach(c=>{if(c.deco)return;
+              c.ticks.forEach(tk=>HitList.push({t:tk.t,lane:tk.cx,w:tk.w,kind:'tick',cr:c.cr,ang:null}))});
+             HitList.sort((a,b)=>a.t-b.t);
+             /* ---- ソフラン: レイヤー別スクロール位置（DrawData の区間表を引く） ---- */
+             const qAt=(layer,t)=>{
+              if(layer==null)return t;
+              const s=D.speedSegs&&D.speedSegs[layer];if(!s||!s.T.length)return t;
+              const{T,V,P}=s;let lo=0,hi=T.length-1,i=-1;
+              while(lo<=hi){const m=(lo+hi)>>1;if(T[m]<=t){i=m;lo=m+1}else hi=m-1}
+              return i<0?t:P[i]+V[i]*(t-T[i]);
+             };
+             const speedAt=(layer,t)=>{
+              if(layer==null)return 1;
+              const s=D.speedSegs&&D.speedSegs[layer];if(!s||!s.T.length)return 1;
+              const{T,V}=s;let lo=0,hi=T.length-1,i=-1;
+              while(lo<=hi){const m=(lo+hi)>>1;if(T[m]<=t){i=m;lo=m+1}else hi=m-1}
+              return i<0?1:V[i];
+             };
+             const barAt=t=>{
+              const bt=D.barTimes;let lo=0,hi=bt.length-1,i=0;
+              while(lo<=hi){const m=(lo+hi)>>1;if(bt[m]<=t){i=m;lo=m+1}else hi=m-1}
+              const t0=bt[i],t1=bt[i+1]??t0+1,len=D.lens[Math.min(i,D.lens.length-1)]||4;
+              return i+(t1>t0?clamp((t-t0)/(t1-t0),0,1):0);
+             };
+             const bpmAt=t=>{
+              const sg=D.bpmSegs;let v=sg[0]?sg[0][1]:120;
+              for(const s of sg){if(s[0]<=t)v=s[1];else break}
+              return v;
+             };
+             /* ================= 設定 ================= */
+             const pf=D.pf,KEY='sekaiChartViewer.settings.v1';
+             let spd=pf.spd,rate=pf.rate,sl=pf.sl,gd=pf.gd,mir=pf.mirror,ap=pf.ap,rk=pf.rk,sf=pf.sf;
+             let skin=pf.skin,fxPat=pf.fxPat,bgBright=pf.bgBright,cover=pf.cover,view=pf.vw==='game'?'game':'flat';
+             let ao=pf.ao,aoMs=pf.aoMs,calibMs=pf.calibMs||0,vl=pf.vol;
+             const TT=v=>Math.max(.1,3.1-.25*v);
+             const leadT=()=>TT(spd)*(rk==='keep'?rate:1);
+             const save=()=>{try{const v=JSON.parse(localStorage.getItem(KEY))||{},p={...(v.player||{}),spd,rate,sl,gd,mirror:mir,apb:ap,sf,rk,aoff:ao,aoMs,calibMs,vol:vl,vw:view,skin,fxPat,bgBright,cover};delete p.ap;v.player=p;localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}try{if(parent&&parent.__setShared)parent.__setShared({slideOpacity:sl,guideOpacity:gd,mirror:mir})}catch(e){}};
+             /* ================= 音声と同期（E） =================
+                時刻は音声クロックに同期する。補正量は
+                  合計 = 出力遅延の自動計測（outputLatency + baseLatency）
+                       + タップキャリブレーションで測った遅延
+                       + 手動 ms 調整 + 従来の秒単位オフセット
+                を aT() から差し引く形で適用する（音が遅れて届く分だけ
+                譜面時刻を進めて数える）。 */
              const MD='https://sekai-world.github.io/sekai-master-db-diff/',SC=new Map();
-             const getCtx=()=>{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();gn=ctx.createGain();gn.gain.value=vl;gn.connect(ctx.destination)}return ctx};
-             const aT=()=>B+(ctx.currentTime-(ctx.outputLatency||0)-T0)*AR;
+             let ctx,gn,src=null,ab=null,B=0,T0=0,AR=1,gen=0,VL=[],vi=0;
+             const getCtx=()=>{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();gn=ctx.createGain();gn.gain.value=vl;gn.connect(ctx.destination);measureLatency()}return ctx};
+             let autoLatMs=0;
+             const measureLatency=()=>{if(!ctx)return 0;autoLatMs=Math.round((((ctx.outputLatency||0)+(ctx.baseLatency||0))*1000));const e=$('latv');if(e)e.textContent=`自動計測 ${autoLatMs}ms ＋ キャリブレーション ${Math.round(calibMs)}ms ＋ 手動 ${Math.round(aoMs)}ms`;return autoLatMs};
+             const latencySec=()=>autoLatMs/1000+calibMs/1000;
+             const aT=()=>B+(ctx.currentTime-latencySec()-T0)*AR;
              const kill=()=>{const s=src;src=null;if(s){try{s.stop()}catch(e){}s.disconnect()}};
-             const aStop=()=>{if(src)cur=Math.min(dur,aT());kill()};
+             const aStop=()=>{if(src){Engine.time=Math.min(Engine.duration,aT());kill()}};
              const aStart=()=>{
-              kill();if(!ab||!playing)return;
-              const c=getCtx(),o=cur+ao,r=ab.r,off=(FS+Math.max(0,o))/r;if(off>=ab.buf.duration)return;
-              const s=c.createBufferSource();s.buffer=ab.buf;s.connect(gn);B=cur;T0=c.currentTime;AR=r;s.start(T0+(o<0?-o/r:0),off);src=s;
+              kill();if(!ab||!Engine.playing)return;
+              const c=getCtx(),o=Engine.time+ao+aoMs/1000,r=ab.r,off=(FS+Math.max(0,o))/r;if(off>=ab.buf.duration)return;
+              const s=c.createBufferSource();s.buffer=ab.buf;s.connect(gn);B=Engine.time;T0=c.currentTime;AR=r;s.start(T0+(o<0?-o/r:0),off);src=s;
              };
              const yd=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>{c.port1.close();r()};c.port2.postMessage(0)});
              async function stretch(b,r,tick){
@@ -1360,7 +1533,7 @@
               const out=new AudioBuffer({length:L,numberOfChannels:C,sampleRate:b.sampleRate});
               Y.forEach((y,c)=>out.copyToChannel(y.subarray(0,L),c));return out;
              }
-             const load=async()=>{
+             const loadAudio=async()=>{
               const g=++gen,v=VL[vi],st=m=>{if(g===gen)$('astat').textContent=m};aStop();ab=null;if(!v)return;
               try{
                let o=SC.get(v.a);
@@ -1372,379 +1545,724 @@
                ab={buf:b,r:rt};st('');aStart();
               }catch(e){st('音源を取得できません（'+(e&&e.message||'通信/CORS')+'）')}
              };
-             /* 設定のデフォルトボーカルで初期選択（その種別がなければもう一方、どちらもなければ先頭） */
              const defVocal=()=>{for(const t of pf.dv==='virtual_singer'?['virtual_singer','sekai']:['sekai','virtual_singer']){const i=VL.findIndex(v=>v.t===t);if(i>=0)return i}return 0};
-             const initA=async()=>{
+             const initAudio=async()=>{
               const sel=$('vocal');if(D.mid==null){sel.options[0].text='（曲未選択のため音源なし）';return}
               try{
                const[mv,gc,oc]=await Promise.all(['musicVocals','gameCharacters','outsideCharacters'].map(f=>parent.__jget?parent.__jget(f+'.json'):fetch(MD+f+'.json').then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})));
                const G=new Map(gc.map(c=>[c.id,(c.firstName||'')+(c.givenName||'')])),O=new Map(oc.map(c=>[c.id,c.name]));
                VL=mv.filter(v=>v.musicId===D.mid).sort((a,b)=>a.seq-b.seq).map(v=>({a:v.assetbundleName,t:v.musicVocalType,l:(v.caption||v.musicVocalType)+(v.characters&&v.characters.length?'：'+v.characters.slice().sort((a,b)=>a.seq-b.seq).map(c=>(c.characterType==='game_character'?G:O).get(c.characterId)||'?').join('、'):'')}));
                if(!VL.length)throw new Error('この曲のボーカル情報がありません');
-               sel.length=0;VL.forEach((v,i)=>sel.add(new Option(v.l,i)));vi=defVocal();sel.value=vi;sel.disabled=false;load();
+               sel.length=0;VL.forEach((v,i)=>sel.add(new Option(v.l,i)));vi=defVocal();sel.value=vi;sel.disabled=false;loadAudio();
               }catch(e){sel.options[0].text='取得失敗';$('astat').textContent='ボーカル情報を取得できません（'+(e&&e.message||'通信/CORS')+'）'}
              };
-             const fmt=t=>{t=Math.max(0,t);const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)};
-             /* ---- 1フレームの描画：現在時刻 t から全要素の位置を計算（状態を持たないのでシーク・巻き戻しも同じ処理） ---- */
-             const drawFlat=()=>{
-              const t=cur,cq=(QC.clear(),QC),Q=h=>{let v=cq.get(h);if(v===undefined){v=lay(h)(t);cq.set(h,v)}return v};
-              const qm=Q(D.mhs),{mj,mn,lb,pg,pp,ga,vn,va}=FA;mj.length=mn.length=lb.length=pg.length=pp.length=ga.length=vn.length=va.length=0;
-              {const qlo=qm-1/pps,qhi=qm+(JY-tp+4)/pps;let a=0,b=LN.length;while(a<b){const m=(a+b)>>1;if(LN[m].q<qlo)a=m+1;else b=m}for(;a<LN.length&&LN[a].q<=qhi;a++){const l=LN[a],y=JY-(l.q-qm)*pps;if(l.maj){mj.push(y);lb.push([y,l.m])}else mn.push(y)}} /* 拍線：q順に並べてあるので画面内の範囲だけ走査 */
-              pMin(mn);pMaj(mj);pLab(lb);
-
-              for(const c of C){
-               if(c._one){const b=Q(c.p[0][3]);if(JY-(c._qa-b)*pps<tp-30||JY-(c._qb-b)*pps>JY+4)continue} const ys=YS,nq=c.Q.length;ys.length=nq;let lo=1e9,hi=-1e9;for(let i=0;i<nq;i++){const y=JY-(c.Q[i]-Q(c.p[i][3]))*pps;ys[i]=y;if(y<lo)lo=y;if(y>hi)hi=y}
-               if(hi<tp-30||lo>JY+4)continue;
-               const sg=fSegs(c,ys);
-               if(c.deco)pg.push([fRibbon(sg,0,1),c.cr?'url(#gGc)':'url(#gGl)',gd]);
-               else{const[c0,c1]=FBODY[c.cr?1:0];
-                pp.push([fEdges(sg,0),'none',1,'rgb(0,10,20)',1.6,.55*sl],[fRibbon(sg,0,1),c0,.85*sl]);
-                let pv=0;for(const[f,m]of FBAND){pp.push([fRibbon(sg,0,f)+fRibbon(sg,1-f,1),c1,(1-(1-m)/(1-pv))*sl]);pv=m}
-                pp.push([fEdges(sg,.6),'none',1,'rgb(255,255,255)',1.2,.3*sl])}
-               for(const r of c.R){const ym=JY-(r.q-Q(r.h))*pps;if(ym<tp-20||ym>JY+8)continue;edgeX(c,ys,r.e,ym);ga.push([r.s,(EX[0]+EX[1])/2,ym])}
-              }
-              pPath(pg,pp);
-
-              VIS.length=0;let nl=0,mo=true;for(const[h,a]of FLAY){const qb=Q(h),qlo=qb-12/pps,qhi=qb+(JY-tp+110)/pps;let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m].q<qlo)lo=m+1;else hi=m}const s0=VIS.length;for(;lo<a.length&&a[lo].q<=qhi;lo++)VIS.push(a[lo]);if(VIS.length>s0){nl++;if(!a._m)mo=false}}
-              if(nl>1||!mo)VIS.sort((u,v)=>v._i-u._i);else VIS.reverse(); /* 画面内のノーツだけを、従来と同じ描画順（添字の降順）に */
-              for(const n of VIS){const y=JY-(n.q-Q(n.h))*pps;if(y<tp-110||y>JY+12)continue;
-               if(n.s)vn.push([n.s,n.x+1,y]);for(const a of n.a)va.push([a,n.x+n.w*LW/2,y])}
-              pN(vn);pA(ga,va);
+             /* --- タップキャリブレーション：クリック音が「聞こえた瞬間」に
+                    タップしてもらい、予定時刻との差の中央値を遅延とする --- */
+             let calibRun=null;
+             const startCalib=()=>{
+              const c=getCtx();if(c.state==='suspended')c.resume();
+              const btn=$('calib');btn.disabled=true;$('calibst').textContent='クリックに合わせて「タップ」ボタンを押してください（6回）';
+              const t0=c.currentTime+0.8,times=[];for(let i=0;i<6;i++)times.push(t0+i);
+              times.forEach(t=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=1760;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+0.09)});
+              calibRun={times,taps:[]};
              };
-             /* ---- ゲーム画面：実機のスクリーンショットから形を測って再現した遠近表示（Canvas）。譜面再生画面と同じデータ・同じ時刻 cur から描く ----
-                形（実機の画面収録 1920×1342 から計測）：消失点＝中央・画面上端の5.74%下／判定枠の中心＝上から73.47%／判定線での1マスの幅＝画面幅の6.58%／
-                白い案内線は2マスごとの7本で消失点から画面下端まで伸び、判定枠だけが12マス。枠の厚みは奥行きzで±1.55%、枠線の色は#a796ff。
-                奥行き：z=0 が判定線、z=ZF(.978) が最奥（表示開始位置＝レーン奥から0%）。縮尺 s=exp(-KAP*z)（実機の 1.06^(-45*(1-p)) と同じ形）、画面y=yV+(yJ-yV)*s、画面x=中央+レーン位置*LU*s。
-                ノーツ速度・ソフラン・ミラー・各透明度は譜面再生画面の設定をそのまま使う。 */
-             let view=pf.vw==='game'?'game':'flat';
-             let gx,bgK='';const gcv=$('gview'),gx0=gx=gcv.getContext('2d'),bgc=$('gbg'),bgx=bgc.getContext('2d'),KAP=45*Math.log(1.06),GF=.0155,GAR=1920/1342,PI=Math.PI,FK=D.fk;
-             /* ノーツ表示開始位置（レーン奥から ap%）→ 奥行きz。ap%は「画面上のレーンの縦方向（投影後のy）」での割合で、3D上の奥行きzの割合ではない。
-                開始位置のy＝最奥のy＋ap%×(判定線のy−最奥のy)。画面yは縮尺sに比例（y=yV+(yJ-yV)*s）するので、その位置の縮尺は s=SF+f*(1-SF)、奥行きは z=-ln(s)/KAP。
-                ap=0 で z=ZF（最奥）、ap=100 で z=0（判定線）。奥ほど遠近で縮むため、例えば ap=30 の位置は奥行きz上では最奥から約60%進んだ所になる。 */
-             const ZF=.978,SF=Math.exp(-KAP*ZF),zOf=f=>-Math.log(SF+f*(1-SF))/KAP;
-             let GW=0,GH=0,DPR=1,jk=null;
-             const fit=()=>{const r=gcv.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);GW=r.width;GH=r.height;gcv.width=Math.max(1,Math.round(GW*DPR));gcv.height=Math.max(1,Math.round(GH*DPR));inv()}; /* サイズ指定で描画状態も初期化される */
-             if(window.ResizeObserver)new ResizeObserver(()=>{if(view==='game')fit()}).observe($('wrap'));
-             const HE=N.filter(n=>n.m&&n.m[0]!=='dmg').sort((a,b)=>a.t-b.t); /* ヒットエフェクト用（時刻順） */
-             if(D.jk){const im=new Image();im.referrerPolicy='no-referrer';im.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=24;c.getContext('2d').drawImage(im,0,0,24,24);jk=c;inv()}catch(e){}};im.src=D.jk} /* ジャケットを縮小→拡大して背景のぼかしに使う */
-             /* 色：[上面の明, 上面の暗, 縁, 光彩のRGB] */
-             const PAL={tap:['#bba3f6','#f0e8ff','#e2f0ff','#90b4fb','#3de8fa','#7f8cf0','150,110,235'],long:['#7aeed8','#dffcf6','#d8fcea','#8cf5c4','#4ee89a','#4fd9a0','60,230,170'],flick:['#ffc0d6','#ffedf4','#fdecf6','#f4aadd','#f58fd0','#f48fb8','255,110,150'],crit:['#f8c765','#fffbd2','#fffccc','#f8e272','#ffee4d','#fdae3e','255,200,50'],dmg:['#a98bd0','#f1e8fb','#e0d1f3','#8d63c4','#6f43a8','#8d63c4','170,110,230']}; /* ノーツスキン（実機の選択画面）：[枠上,面上,面下,帯上,帯下,端の印,光彩RGB] */
-             const PT={long:['#52edc6','#58f0a9','#81faa7'],crit:['#fad584','#fdde85','#fff775'],flick:['#ff95be','#ff92c7','#ff8dcc']}; /* トレースの棒：上/中/下 */
-             const GEM={crit:['#ffd24a','#fff1c4'],flick:['#ff8fbf','#ffd9ee'],long:['#4fe0b0','#d5fff0']}; /* 宝石：[縁と光彩, 右の面]（左の面は白） */
-             const EF={tap:['110,90,255','170,205,255'],flick:['255,95,160','255,215,235'],long:['50,230,165','200,255,235'],crit:['255,196,60','255,244,180']}; /* ヒットエフェクトの色：[主色, 明るい色] */
-             const OUT={long:'#2f6f5a',crit:'#9a7a1e',flick:'#a05a7a',tap:'#7a52a0',dmg:'#4a2d73'}; /* ノーツの濃い縁取り色（譜面表示の「外側の影」と同じ） */
-             const RT=[],rnd=(i,j)=>{let t=RT[i];if(!t)t=RT[i]=new Float64Array(192).fill(-1);let v=t[j];if(v<0){const x=Math.sin(i*127.1+j*311.7)*43758.5453;v=t[j]=x-Math.floor(x)}return v}; /* 擬似乱数は (i,j) ごとに1度だけ計算して保持（値は従来と同じ） */
-             const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return'rgba('+(n>>16)+','+(n>>8&255)+','+(n&255)+','+a+')'};
-             const poly=p=>{gx.beginPath();for(let i=0;i<p.length;i++){const q=p[i];i?gx.lineTo(q[0],q[1]):gx.moveTo(q[0],q[1])}gx.closePath()};
-             const rpoly=(p,r)=>{const n=p.length;r=Math.max(.5,r);gx.beginPath();gx.moveTo((p[0][0]+p[1][0])/2,(p[0][1]+p[1][1])/2);for(let i=1;i<=n;i++){const a=p[i%n],b=p[(i+1)%n];gx.arcTo(a[0],a[1],(a[0]+b[0])/2,(a[1]+b[1])/2,r)}gx.closePath()}; /* 角丸の多角形 */
-             /* フリック矢印：実機の矢印画像(notes_flick_arrow*.png)を測った座標(FK)で描く。大きさ・置き方は譜面表示の arrow() と同じ
-                （枠の高さ=1.5マス×((幅+3)/3)^.75、枠の幅=2.25マス×((幅+.5)/3)^.75、枠の下端=ノーツ中心の1/4マス下）。u=その奥行きでの1マスの幅(px)。 */
-             const flickRaw=(x,y,u,w,ang,k)=>{
-              const wc=Math.max(1,Math.min(6,Math.trunc(w))),diag=Math.abs(ang)>.1,right=ang>0,bias=diag?(right?1:-1)*u/4:0;
-              const fh=1.5*u,h=fh*Math.pow((wc+3)/3,.75),iw=fh*1.5*Math.pow((wc+.5)/3,.75);
-              const r=(diag?FK.D:FK.V)[wc-1],Wp=r[0],Hp=r[1],sc=Math.min(iw/Wp,h/Hp),c=FK.C[k]||FK.C.flick,G=FK.G[k]||FK.G.flick,T=FK.T,O=FK.O,hf=T/2;
-              const P=diag?[0,1,2,3,4,5].map(i=>[r[2+2*i],r[3+2*i]]):[[r[2]-r[3],r[4]],[r[2]-r[3],r[5]],[r[2],r[6]],[r[2]+r[3],r[5]],[r[2]+r[3],r[4]],[r[2],r[7]]];
-              const sl=diag?.5774:0,Lx=P[1][0]+hf,Ly=P[1][1],Rx=P[3][0]-hf,Ry=P[3][1],st=r[r.length-1];
-              gx.save();if(right){gx.translate(2*(x+bias),0);gx.scale(-1,1)}
-              gx.translate(x-iw/2+bias+(iw-Wp*sc)/2,y+u/4-h+(h-Hp*sc)/2);gx.scale(sc,sc);
-              const g=gx.createLinearGradient(0,P[2][1],0,Hp);st.forEach((a,i)=>g.addColorStop(i/8,hexA(c[3],a/100)));
-              gx.beginPath();gx.moveTo(Lx,Ly);gx.lineTo(P[2][0],P[2][1]);gx.lineTo(Rx,Ry);gx.lineTo(Rx+sl*(Hp-Ry),Hp);gx.lineTo(Lx+sl*(Hp-Ly),Hp);gx.closePath();gx.fillStyle=g;gx.fill(); /* 下へ伸びる白いトレイル */
-              for(const[e,a]of G){poly(P);gx.lineWidth=T+2*(O+e);gx.strokeStyle=hexA(c[2],a);gx.stroke()} /* 外側の影 */
-              poly(P);gx.lineWidth=T+2*O;gx.strokeStyle=c[4];gx.stroke(); /* 濃い縁 */
-              poly(P);gx.fillStyle=c[0];gx.fill();gx.lineWidth=T;gx.strokeStyle=c[1];gx.stroke(); /* 塗りと淡色リング */
-              gx.restore()};
-             /* フリック矢印は形が(種類・幅・向き)と拡大率だけで決まる→縮尺ごとに1度だけ描いて drawImage で使い回す（宝石と同じ縮尺バケット）。
-                メモリ上限を超えたら作り直し、大きすぎる矢印は従来どおり直接描く */
-             const AC=new Map();let acPx=0;
-             const flick=(x,y,u,w,ang,k)=>{
-              const wc=Math.max(1,Math.min(6,Math.trunc(w))),diag=Math.abs(ang)>.1,right=ang>0,qb=Math.max(0,Math.round(Math.log(Math.max(u,1))/.0583)),key=k+wc+(diag?right?'R':'L':'V')+qb;
-              let sp=AC.get(key);
-              if(!sp){
-               const ub=Math.exp(qb*.0583),fh=1.5*ub,h=fh*Math.pow((wc+3)/3,.75),iw=fh*1.5*Math.pow((wc+.5)/3,.75),r=(diag?FK.D:FK.V)[wc-1],G=FK.G[k]||FK.G.flick,
-                m=(FK.T/2+FK.O+Math.max(...G.map(e=>e[0])))*Math.min(iw/r[0],h/r[1])+2,bias=diag?(right?1:-1)*ub/4:0,cw=Math.ceil((iw+2*m)*DPR),ch=Math.ceil((h+2*m)*DPR);
-               if(cw*ch>1e6)return flickRaw(x,y,u,w,ang,k);
-               if(acPx>1.2e7){AC.clear();acPx=0}
-               const cv=document.createElement('canvas'),c2=cv.getContext('2d'),pg=gx,ax=iw/2-bias+m,ay=h-ub/4+m;
-               cv.width=cw;cv.height=ch;c2.setTransform(DPR,0,0,DPR,0,0);c2.lineJoin=c2.lineCap='round';gx=c2;try{flickRaw(ax,ay,ub,w,ang,k)}finally{gx=pg}
-               AC.set(key,sp={cv,ax,ay,ub,cw:cw/DPR,ch:ch/DPR});acPx+=cw*ch;
+             const calibTap=()=>{
+              if(!calibRun||!ctx)return;
+              const now=ctx.currentTime,t=calibRun.times.reduce((a,b)=>Math.abs(b-now)<Math.abs(a-now)?b:a,calibRun.times[0]);
+              calibRun.taps.push((now-t)*1000);
+              $('calibst').textContent=`記録 ${calibRun.taps.length} / 6`;
+              if(calibRun.taps.length>=4&&calibRun.taps.length>=calibRun.times.length-2||calibRun.taps.length>=6){
+               const s=calibRun.taps.slice().sort((a,b)=>a-b),med=s[Math.floor(s.length/2)];
+               calibMs=Math.round(clamp(med,0,1000));calibRun=null;
+               $('calib').disabled=false;$('calibst').textContent=`キャリブレーション完了：${calibMs}ms を補正に加えました`;
+               measureLatency();save();if(Engine.playing)aStart();
               }
-              const q=u/sp.ub;gx.drawImage(sp.cv,x-sp.ax*q,y-sp.ay*q,sp.cw*q,sp.ch*q)};
-             const BN=14,BMIX=[],BF=[];for(let j=1;j<BN;j++){BF.push(.5*(BN-j)/BN);BMIX.push(.73*Math.pow((j+.5)/BN,1.7))}
-             const BODY={long:['107,229,188','168,235,200'],crit:['234,226,153','238,233,180']},GUIDE={long:['82,250,162',1.11],crit:['255,188,39',.874]};
-             const GEMS={long:{r0:'#9bf2c6',r1:'#d6fce9',e0:'#a8f0d6',e1:'#ecfff7',h:'10,120,85',u:'150,240,215'},crit:{r0:'#ffe888',r1:'#fff8c8',e0:'#ffc649',e1:'#ffd870',h:'200,140,10',u:'255,238,160'},flick:{r0:'#ffb0d2',r1:'#ffe3f0',e0:'#ff8fbf',e1:'#ffc4de',h:'190,50,110',u:'255,180,215'}};
-             const STC=['255,255,255','150,200,255','150,255,190','255,170,225','255,235,150'];
-             /* 毎フレーム使い回す配列・Map・オブジェクトプール（カーソルはフレーム頭で0に戻す）。GC＝宝石スプライト（縮尺ごと）のキャッシュ */
-             const PJN=[],IT=[],ARW=[],HD=[],BQ=[],LRP=[],SMP=[],RG=[],HOLDS=[],ITEMS=[],BODYQ=[],ARRS=[],SMM=new Map(),GC={long:[],crit:[],flick:[]};
-             let pjI=0,iI=0,aI=0,hI=0,bI=0,lI=0,smI=0,GCD=0;
-             const mkIt=(z,g,lp,k,n)=>{const o=IT[iI++]||(IT[iI-1]={z:0,g:0,lp:0,k:'',n:null});o.z=z;o.g=g;o.lp=lp;o.k=k;o.n=n;return o};
-             const lr=()=>{const a=LRP[lI++]||(LRP[lI-1]=[]);a.length=0;return a};
-             const q4=(a,b,c,d,e,f,g,h)=>{gx.beginPath();gx.moveTo(a,b);gx.lineTo(c,d);gx.lineTo(e,f);gx.lineTo(g,h);gx.closePath()},STP=[[0,-1],[.2,-.2],[1,0],[.2,.2],[0,1],[-.2,.2],[-1,0],[-.2,-.2]],TGS=[[0,0],[.17,.03],[.34,.04],[.51,.055],[.68,.075],[.84,.1],[1,.12]];
-             const star=(x,y,s)=>{gx.beginPath();for(let i=0;i<8;i++){const p=STP[i];i?gx.lineTo(x+p[0]*s,y+p[1]*s):gx.moveTo(x+p[0]*s,y+p[1]*s)}gx.closePath()};
-             /* エフェクトの粒子（星・結晶）は形が固定なので、色ごとに1度だけ描いたスタンプを拡大縮小して使う（濃さは globalAlpha） */
-             const SPS=new Map(),stamp=(key,w,h,paint)=>{const cv=document.createElement('canvas'),c2=cv.getContext('2d'),pg=gx;cv.width=Math.ceil(w*DPR);cv.height=Math.ceil(h*DPR);c2.setTransform(DPR,0,0,DPR,0,0);c2.lineJoin=c2.lineCap='round';gx=c2;try{paint()}finally{gx=pg}SPS.set(key,cv);return cv};
-             const starSp=j=>SPS.get('s'+j)||stamp('s'+j,34,34,()=>{star(17,17,16);gx.fillStyle='rgb('+STC[j]+')';gx.fill()});
-             const crysSp=k=>SPS.get('c'+k)||stamp('c'+k,22,54,()=>{q4(11,1.5,19.32,33.5,11,52.7,2.68,33.5);gx.fillStyle='rgb('+EF[k][1]+')';gx.fill()});
-             const mkEG=()=>({tg:null,tgS:0,p:{},r:{},g:{}});let EG=mkEG(),EW=0,EH=0; /* EG＝ヒットエフェクトのグラデーション置き場（画面サイズが変わったら作り直す。濃さは globalAlpha で掛ける） */
-             const drawGame=()=>{
-              const W=GW,H=GH;if(!W||!H)return;pjI=iI=aI=hI=bI=lI=smI=0;if(GCD!==DPR){GCD=DPR;for(const k in GC)GC[k].length=0;AC.clear();acPx=0;SPS.clear()}if(EW!==W||EH!==H){EW=W;EH=H;EG=mkEG()}
-              const t=cur,cq=(QC.clear(),QC),Q=h=>{let v=cq.get(h);if(v===undefined){v=lay(h)(t);cq.set(h,v)}return v};
-              /* ステージは実機（画面収録 1920×1342）と同じ画面比率。横長の画面は左右に余白、縦長の画面は上下に余白を取る */
-              const wide=W/H>=GAR,Sw=wide?H*GAR:W,Sh=Sw/GAR,ox=(W-Sw)/2,oy=(H-Sh)/2,yB=oy+Sh,k0=Sw/1136;
-              const cx=W/2,yV=oy+.0574*Sh,yJ=oy+.7347*Sh,LU=.0658*Sw,zM=zOf(ap/100),sg=mir?-1:1,top=JY*(1-zM),sB=(yB-yV)/(yJ-yV);
-              const pj=(lp,z)=>{const s=Math.exp(-KAP*z),a=PJN[pjI++]||(PJN[pjI-1]=[0,0,0]);a[0]=cx+sg*lp*LU*s;a[1]=yV+(yJ-yV)*s;a[2]=s;return a}; /* レーン位置lp(-6〜6)・奥行きz → 画面[x,y,縮尺] */
-              const quad=(l0,l1,z0,z1)=>poly([pj(l0,z0),pj(l1,z0),pj(l1,z1),pj(l0,z1)]);
-              /* ロングノーツの本体（実機の画面収録を計測。不透明度100%＝この見た目）：中央は濃い色、縁へ向かって白っぽく明るくなる横グラデーション（奥行きで濃さは変わらない）。
-                 縁の内側に約1.5pxの明線、外側に約1pxの暗線。通常は不透明度0.85で背景がわずかに透ける。ガイドは平らな単色で、奥は透明・判定線で最大（画面の縮尺に比例）。 */
-              /* 縁からの帯：中央0〜縁1 の明るさ配分 ≈ (中心からの距離)^1.7 */
-
-              const pxv=Sw/1920,ringOf=(L,R)=>{const g=RG;let n=0;for(let i=0;i<L.length;i++)g[n++]=L[i];for(let i=R.length-1;i>=0;i--)g[n++]=R[i];g.length=n;return g};
-              const strokeEdges=(L,R)=>{for(let e=0;e<2;e++){const E=e?R:L;gx.beginPath();for(let i=0;i<E.length;i++)i?gx.lineTo(E[i][0],E[i][1]):gx.moveTo(E[i][0],E[i][1]);gx.stroke()}};
-              const bandPoly=(L,R,f,right)=>{const n=L.length;gx.beginPath();for(let i=0;i<n;i++){const p=right?R[i]:L[i];i?gx.lineTo(p[0],p[1]):gx.moveTo(p[0],p[1])}for(let i=n-1;i>=0;i--){const p=right?R[i]:L[i],q=right?L[i]:R[i];gx.lineTo(p[0]+(q[0]-p[0])*f,p[1]+(q[1]-p[1])*f)}gx.closePath()};
-              const slideBody=(L,R,cr)=>{
-               const[c0,c1]=BODY[cr?'crit':'long'];
-               gx.lineWidth=Math.max(1.4,2.6*pxv);gx.strokeStyle='rgba(0,10,20,'+.55*sl+')';strokeEdges(L,R); /* 外側の暗線（内側の半分は本体で隠れる） */
-               poly(ringOf(L,R));gx.fillStyle='rgba('+c0+','+.85*sl+')';gx.fill();
-               let pv=0;BF.forEach((f,j)=>{const a=(1-(1-BMIX[j])/(1-pv))*sl;pv=BMIX[j];gx.fillStyle='rgba('+c1+','+a+')';bandPoly(L,R,f,0);gx.fill();bandPoly(L,R,f,1);gx.fill()}); /* 縁ほど明るい */
-               gx.save();poly(ringOf(L,R));gx.clip();gx.lineWidth=Math.max(1.6,3*pxv);gx.strokeStyle='rgba(255,255,255,'+.3*sl+')';strokeEdges(L,R);gx.restore(); /* 内側の明線 */
-              };
-              const guideBody=(L,R,cr)=>{
-               const[col,K]=GUIDE[cr?'crit':'long'],g=gx.createLinearGradient(0,yV,0,yJ);
-               g.addColorStop(0,'rgba('+col+',0)');g.addColorStop(1,'rgba('+col+','+Math.min(1,gd*K)+')');
-               poly(ringOf(L,R));gx.fillStyle=g;gx.fill();
-              };
-              const yFar=pj(0,zM)[1],vg=(c0,c1,y0=yFar,y1=yJ)=>{const g=gx.createLinearGradient(0,y0,0,y1);g.addColorStop(0,c0);g.addColorStop(1,c1);return g};
-              /* ヒットエフェクトの部品（実機の画面収録から再現）。m=主色／lt=明るい色。bm=光の柱・gl=判定枠の発光と閃光・dm=床のひし形の強さ
-                 柱は2本：レーン線に沿って画面下端まで伸びる床の光と、判定線からまっすぐ上へ伸びて薄れる光 */
-              const dia=(x,y,hw,hh)=>{gx.beginPath();gx.moveTo(x,y-hh);gx.lineTo(x+hw,y);gx.lineTo(x,y+hh);gx.lineTo(x-hw,y);gx.closePath()};
-              const burst=(l0,l1,k,bm,gl,dm,hi=0,ha=0,ll=0,lu=0)=>{
-               const[m,lt]=EF[k],c=pj((l0+l1)/2,0),sp=l1-l0,xl=pj(l0,0)[0],xr=pj(l1,0)[0],hU=.285*Sh,gw=hU/(1.724*Sh);
-               if(lu>0){ /* 叩いたレーンの灰白の光（判定線の奥側）：線際で白約12%、奥へ薄れる（実機の計測値） */
-                const zT=.4,tg=EG.tg||(EG.tg=gx.createLinearGradient(0,pj(0,zT)[1],0,yJ));
-                if(!EG.tgS){EG.tgS=1;for(const[o,a]of TGS)tg.addColorStop(o,'rgba(255,255,255,'+a+')')}
-                {const p0=pj(l0,zT),p1=pj(l1,zT),p2=pj(l1,0),p3=pj(l0,0);q4(p0[0],p0[1],p1[0],p1[1],p2[0],p2[1],p3[0],p3[1])}gx.fillStyle=tg;gx.globalAlpha=lu;gx.fill();gx.globalAlpha=1;
-               }
-               if(ll>0){q4(xl,yJ,xr,yJ,cx+sg*l1*LU*sB,yB,cx+sg*l0*LU*sB,yB);gx.fillStyle='rgba(255,255,255,'+.118*ll+')';gx.fill()} /* 判定線より手前（画面下端まで）は一様な白約12% */
-               if(bm>0){
-                const tl=cx+(xl-cx)*(1+gw),tr=cx+(xr-cx)*(1+gw),g=EG.p[k]||(EG.p[k]=gx.createLinearGradient(0,yJ-hU,0,yJ));
-                if(!g._s){g._s=1;g.addColorStop(0,'rgba('+m+',0)');g.addColorStop(.45,'rgba('+m+',.07)');g.addColorStop(.75,'rgba('+m+',.17)');g.addColorStop(1,'rgba('+m+',.34)')}
-                q4(xl,yJ,xr,yJ,tr,yJ-hU,tl,yJ-hU);gx.fillStyle=g;gx.globalAlpha=bm;gx.fill(); /* 色付きの光の柱：判定線に立つ垂直の面（上へ外側に開く・高さは画面の約28%） */
-                const bw=Math.max(1.5,.06*LU*(1+.2*sp)),bt=c[0]+(c[0]-cx)*.07;
-                q4(c[0]-bw,yJ,c[0]+bw,yJ,bt+bw*.4,yJ-.2*Sh,bt-bw*.4,yJ-.2*Sh);gx.fillStyle=EG.r[k]||(EG.r[k]=vg('rgba('+lt+',0)','rgba('+lt+',.55)',yJ-.2*Sh,yJ));gx.fill();gx.globalAlpha=1; /* 中央の細い光線 */
-               }
-               if(gl>0){
-                for(let q=Math.round(l0);q<l1-.01;q++){{const a0=pj(q,GF),a1=pj(q+1,GF),a2=pj(q+1,-GF),a3=pj(q,-GF);q4(a0[0],a0[1],a1[0],a1[1],a2[0],a2[1],a3[0],a3[1])}gx.fillStyle='rgba('+m+','+.22*gl+')';gx.fill();gx.lineWidth=Math.max(1.5,3.2*k0);gx.strokeStyle='rgba('+lt+','+.95*gl+')';gx.stroke()} /* 判定枠のマスが縁取りで光る */
-                const r=LU*(.5+.1*sp),gc=EG.g[k]||(EG.g[k]={}),g=gc[sp]||(gc[sp]=gx.createRadialGradient(0,0,0,0,0,r));if(!g._s){g._s=1;g.addColorStop(0,'rgba('+lt+',.7)');g.addColorStop(.4,'rgba('+m+',.32)');g.addColorStop(1,'rgba('+m+',0)')}gx.save();gx.translate(c[0],c[1]);gx.fillStyle=g;gx.globalAlpha=gl;gx.fillRect(-r,-r,2*r,2*r);gx.restore();
-               }
-               if(dm>0)for(let j=0;j<2;j++){ /* 床に重なる2枚の四角い輪郭（遠近で平たく見える） */
-                const r=q=>rnd(hi+3,j*7+q),th=(j?.5:-.35)+ha*(j?1.3:-1.1)+(r(1)-.5)*.4,s=LU*(.5+.3*j)*(.85+.15*sp),px=c[0]+(r(4)-.5)*sp*LU*.5,py=c[1]-r(5)*.1*LU;
-                {const cs=s*Math.cos(th),sn=s*Math.sin(th);q4(px+cs-sn,py+(sn+cs)*.34,px-cs-sn,py+(cs-sn)*.34,px-cs+sn,py-(sn+cs)*.34,px+cs+sn,py+(sn-cs)*.34)}
-                gx.fillStyle='rgba('+m+','+.07*dm+')';gx.fill();gx.lineWidth=Math.max(1,1.6*k0);gx.strokeStyle='rgba('+lt+','+.55*dm+')';gx.stroke()
-               }
-              };
-              /* 粒子：ひし形の欠片が一気に散って薄れる（フリックは白い細線も放射）。位置は擬似乱数なので、シークしても同じ見た目 */
-              const shard=(i,l0,l1,k,a)=>{
-               const lt=EF[k][1],sp=l1-l0,c=pj((l0+l1)/2,0),e1=1-Math.exp(-a*16);
-               for(let j=0;j<(k==='flick'?18:12);j++){ /* 細長い火花：横方向へ多く放射し、すぐ消える */
-                const r=q=>rnd(i,j*9+q),life=.16+.2*r(1);if(a>=life)continue;
-                const f=1-a/life,an=(r(2)<.7?(r(3)<.5?0:PI):-PI*r(3))+(r(4)-.5)*.5,ca=Math.cos(an),sa=Math.sin(an)*.55,sx=c[0]+(r(5)-.5)*sp*LU*.8;
-                const d=LU*(.25+1.1*r(6))*e1,Ln=LU*(.25+.55*r(7))*(.4+.6*f),wd=Math.max(.8,.035*LU)*f,mx=sx+ca*(d+Ln*.4),my=c[1]+sa*(d+Ln*.4);
-                q4(sx+ca*d,c[1]+sa*d,mx-sa*wd,my+ca*wd,sx+ca*(d+Ln),c[1]+sa*(d+Ln),mx+sa*wd,my-ca*wd);gx.fillStyle='rgba(255,255,255,'+.9*f+')';gx.fill()
-               }
-               for(let j=0;j<10;j++){ /* 小さな粒 */
-                const r=q=>rnd(i,j*5+q+60),life=.3+.3*r(1);if(a>=life)continue;
-                const f=1-a/life,s=Math.max(1,LU*(.02+.025*r(2)));gx.fillStyle='rgba('+lt+','+.9*f+')';gx.fillRect(c[0]+(r(3)-.5)*LU*(sp*.6+1.6)*e1,c[1]+(r(4)-.6)*LU*2.2*e1,s,s)
-               }
-              };
-              const crys=(i,l0,l1,k,a)=>{ /* 判定枠から昇る細長い結晶 */
-               const lt=EF[k][1],sp=l1-l0,c=pj((l0+l1)/2,0);
-               for(let j=0;j<8;j++){const r=q=>rnd(i+11,j*7+q),life=.2+.2*r(1);if(a<.015||a>=life)continue;
-                const f=1-a/life,x=c[0]+(r(2)-.5)*sp*LU*.9,y=c[1]-LU*(.15+1.7*r(3))*(1-Math.exp(-a*10)),hh=LU*(.17+.2*r(4)),hw=hh*.26;
-                const kq=hh/32;gx.globalAlpha=.85*f;gx.drawImage(crysSp(k),x-11*kq,y-33.5*kq,22*kq,54*kq)}gx.globalAlpha=1;
-              };
-
-              const stars=(i,l0,l1,a)=>{ /* フリックで四方へ飛ぶ多色の星形スパークル */
-               const sp=l1-l0,c=pj((l0+l1)/2,0);
-               for(let j=0;j<9;j++){const r=q=>rnd(i+23,j*6+q),life=.45+.45*r(1);if(a>=life)continue;
-                const f=1-a/life,an=-PI*(.04+.92*r(2)),d=LU*(.6+3.4*r(3))*(1-Math.exp(-a*5)),x=c[0]+Math.cos(an)*d+(r(4)-.5)*sp*LU*.6,y=c[1]+Math.sin(an)*d*.8,s=LU*(.07+.1*r(5))*(.55+.45*Math.sin(a*45+j*2)**2);
-                const kq=s/16;gx.globalAlpha=Math.min(1,1.6*f);gx.drawImage(starSp(j%5),x-17*kq,y-17*kq,34*kq,34*kq)}gx.globalAlpha=1;
-              };
-              const glit=(i,l0,l1,k,t)=>{const lt=EF[k][1];for(let j=0;j<14;j++){const r=q=>rnd(i+7,j*5+q),p=((t*1.6+r(1))%1+1)%1,s=Math.max(1.2,LU*(.04+.05*r(3))),x=pj(l0+(l1-l0)*r(2),0)[0],y=yJ-p*.21*Sh;gx.fillStyle='rgba('+lt+','+.85*Math.sin(PI*p)+')';gx.fillRect(x-s/2,y-s/2,s,s)}}; /* 保持中に光の柱の中を舞い上がる粒 */
-              const gReset=()=>{gx.setTransform(DPR,0,0,DPR,0,0);gx.globalAlpha=1;gx.globalCompositeOperation='source-over';gx.lineJoin='round';gx.lineCap='round'};const gClip=()=>{gx.save();rpoly([[ox,oy],[ox+Sw,oy],[ox+Sw,yB],[ox,yB]],14*k0);gx.clip()};
-              /* 背景とレーンは大きさ・ミラー・ジャケットが変わらない限り同じ絵なので、別キャンバスに1度だけ描いて使い回す */
-              const gPaintBg=()=>{gReset();
-              gx.fillStyle='#05081a';gx.fillRect(0,0,W,H);
-              gClip();
-              /* 背景：実機の配色（上は紺、下は左が青緑・右が紫）と、左右の端の暗いふち */
-              const bg0=vg('#050a20','#2a1346',oy,yB);bg0.addColorStop(.3,'#060b22');bg0.addColorStop(.55,'#0a0f28');bg0.addColorStop(.72,'#110f2c');bg0.addColorStop(.86,'#1c1138');gx.fillStyle=bg0;gx.fillRect(ox,oy,Sw,Sh);
-              const glow=(fx,fy,r,rgb,a)=>{const x=ox+fx*Sw,y=oy+fy*Sh,g=gx.createRadialGradient(x,y,0,x,y,r*Sw);g.addColorStop(0,'rgba('+rgb+','+a+')');g.addColorStop(1,'rgba('+rgb+',0)');gx.fillStyle=g;gx.fillRect(ox,oy,Sw,Sh)};
-              glow(.08,1,.5,'35,75,95',.5);glow(.94,.95,.45,'120,30,130',.55);glow(.5,1,.55,'60,25,110',.35);
-              if(jk){gx.globalAlpha=.12;gx.drawImage(jk,ox,oy,Sw,Sh);gx.globalAlpha=1}
-              /* レーン：奥の端（画面高さの約10%）から現れ、約15%までに濃くなる。そこから下端まで一定の濃さ。外側の2本は太く明るく、内側の5本は細く淡い */
-              const yL0=oy+.0999*Sh,yL1=oy+.1475*Sh,sL=(yL0-yV)/(yJ-yV),lg=a=>{const g=gx.createLinearGradient(0,yL0,0,yB);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop((yL1-yL0)/(yB-yL0),'rgba(255,255,255,'+a+')');g.addColorStop(1,'rgba(255,255,255,'+a+')');return g};
-              poly([[cx+6*LU*sL,yL0],[cx+6*LU*sB,yB],[cx-6*LU*sB,yB],[cx-6*LU*sL,yL0]]);gx.fillStyle=vg('rgba(6,4,28,0)','rgba(6,4,28,.22)',yL0,yL1);gx.fill();
-              for(const[a,w,ls]of[[.19,1,[-4,-2,0,2,4]],[.5,1.5,[-6,6]]]){gx.strokeStyle=lg(a);gx.lineWidth=Math.max(1,w*k0);gx.beginPath();for(const lp of ls){gx.moveTo(cx+sg*lp*LU*sL,yL0);gx.lineTo(cx+sg*lp*LU*sB,yB)}gx.stroke()}
-                      /* 判定枠：12マスの暗い枠に#a796ffの縁。ノーツはこの上を通る */
-              const fr=[pj(-6,GF),pj(6,GF),pj(6,-GF),pj(-6,-GF)];
-              rpoly(fr,5*k0);gx.fillStyle='rgba(6,5,16,.82)';gx.fill();
-              gx.strokeStyle='rgba(150,122,255,.7)';gx.lineWidth=Math.max(1,1.3*k0);gx.beginPath();for(let i=1;i<12;i++){const a=pj(i-6,GF),b=pj(i-6,-GF);gx.moveTo(a[0],a[1]);gx.lineTo(b[0],b[1])}gx.stroke();
-              rpoly(fr,5*k0);gx.lineWidth=12*k0;gx.strokeStyle='rgba(166,126,255,.22)';gx.stroke();gx.lineWidth=4.2*k0;gx.strokeStyle='#a67eff';gx.stroke();
-              gx.restore()};
-              const gKey=W+','+H+','+DPR+','+sg+','+(jk?1:0);
-              if(bgK!==gKey){bgc.width=gcv.width;bgc.height=gcv.height;gx=bgx;try{gPaintBg()}finally{gx=gx0}bgK=gKey}
-              gx.setTransform(1,0,0,1,0,0);gx.globalAlpha=1;gx.globalCompositeOperation='source-over';gx.clearRect(0,0,gcv.width,gcv.height);gReset();gClip(); /* 背景は背面の別レイヤー(#gbg)。こちらはノーツとエフェクトだけを毎フレーム描き直す */
-              /* スライド（経路を奥行き方向にサンプリングして、遠近を付けた帯として塗る） */
-              const holds=HOLDS,items=ITEMS,bodyQ=BODYQ;holds.length=items.length=bodyQ.length=0; /* 本体は判定枠より後（枠の上）に、ガイド→ロングの順で描く */
-              for(const c of C){if(c._one){const b=Q(c.p[0][3]);if(JY-(c._qa-b)*pps<top-4||JY-(c._qb-b)*pps>JY+4)continue}
-               const ys=YS,nq=c.Q.length;ys.length=nq;let lo=1e9,hi=-1e9;for(let i=0;i<nq;i++){const y=JY-(c.Q[i]-Q(c.p[i][3]))*pps;ys[i]=y;if(y<lo)lo=y;if(y>hi)hi=y}
-               if(hi<top-4||lo>JY+4)continue;
-               const n1=ys.length-1,L=lr(),R=lr();
-               for(let i=0;i<n1;i++){
-                const up=Math.min(ys[i],JY),dn=Math.max(ys[i+1],top);if(up<=dn+.01)continue;
-                const K=Math.max(2,Math.min(28,Math.ceil((up-dn)/12)));
-                for(let k=0;k<=K;k++){const y=up-(up-dn)*k/K,z=(JY-y)/JY;edgeX(c,ys,i,y);L.push(pj(EX[0]/LW-6,z));R.push(pj(EX[1]/LW-6,z))}
-               }
-               if(!c.deco&&ys[0]>=JY&&ys[n1]<=JY){let i=0;while(i<n1-1&&ys[i+1]>JY)i++;edgeX(c,ys,i,JY);{const h=HD[hI++]||(HD[hI-1]=[0,0,0]);h[0]=EX[0]/LW-6;h[1]=EX[1]/LW-6;h[2]=c.cr;holds.push(h)}} /* 保持中：判定線上の経路位置 */
-               if(L.length>1){const o=BQ[bI++]||(BQ[bI-1]={c:null,L:null,R:null});o.c=c;o.L=L;o.R=R;bodyQ.push(o)}
-               for(const r of c.R){const ym=JY-(r.q-Q(r.h))*pps;if(ym<top-2||ym>JY+2)continue;edgeX(c,ys,r.e,ym);items.push(mkIt((JY-ym)/JY,1,(EX[0]+EX[1])/2/LW-6,r.k?'crit':'long',null))}
+             };
+             /* ================= WASM コア（投影＋パーティクル物理） ================= */
+             const PCAP=4096,PSTR=20,PIN_OFF=1048576/4,POUT_OFF=1572864/4,PACK_OFF=2097152/4;
+             let W=null,pmem=null;
+             const KAP=45*Math.log(1.06),ZF=.978,SF=Math.exp(-KAP*ZF);
+             const projectJS=(arr,mode,g)=>{
+              const out=new Float32Array(arr.length*2);
+              for(let i=0;i<arr.length;i+=2){
+               const lane=arr[i],rel=arr[i+1];let s,sx,sy;
+               if(mode===0){const z=clamp(rel/g.lead,0,1);s=Math.exp(-KAP*z);sx=g.cx+(lane-6)*g.unit*s;sy=g.yV+(g.yJ-g.yV)*s}
+               else{s=1;sx=g.left+lane*g.unit;sy=g.yJ-rel*g.pps}
+               out[i/2*4]=sx;out[i/2*4+1]=sy;out[i/2*4+2]=s;out[i/2*4+3]=s;
               }
-              const visN=VN;VN.length=0;let nl=0,mo=true;for(const[h,a]of NLAY){const qb=Q(h),kq=JY/pps,qlo=qb-.05*kq,qhi=qb+(zM+.05)*kq;let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m].q<qlo)lo=m+1;else hi=m}const s0=visN.length;for(;lo<a.length&&a[lo].q<=qhi;lo++)visN.push(a[lo]);if(visN.length>s0){nl++;if(!a._m)mo=false}}
-              if(nl>1||!mo)visN.sort((u,v)=>u._i-v._i); /* 元の順序に戻す（同じzの重なり順を変えないため） */
-              for(const n of visN){const z=(n.q-Q(n.h))*pps/JY;if(z<-.002||z>zM)continue;n.m[0]==='relay'?items.push(mkIt(z,1,n.x/LW-6+n.w/2,n.m[1]?'crit':'long',null)):items.push(mkIt(z,0,0,'',n))}
-              for(const o of bodyQ)if(o.c.deco)guideBody(o.L,o.R,o.c.cr);for(const o of bodyQ)if(!o.c.deco)slideBody(o.L,o.R,o.c.cr); /* ガイド→ロングの順（ソート不要） */
-              gx.globalCompositeOperation='lighter';
-              holds.forEach(([a,b,cr],i)=>{const k=cr?'crit':'long';burst(a,b,k,.8,.75*(.85+.15*Math.sin(t*20+i)),.8);glit(i,a,b,k,t)}); /* 保持中：柱・枠の発光・ひし形を出し続け、粒子を舞い上げる */
-              gx.globalCompositeOperation='source-over';
-              /* ノーツ：床に寝かせた板として遠近どおりの台形で描く（奥の辺は狭く、手前の辺は広い。左右の辺はレーン線と同じ向き）。
-                 厚みは判定枠の内側に収まる程度（奥行きz±1.25%）。フリックの矢印は全ノーツの上に重ねる */
-              /* 宝石（実機の画面収録を計測）：八面体。上の四角錐は左面が白・右面が淡色のグラデーション、下の逆さ四角錐はごく淡い。
-                 幅=0.88マス・上の高さ=0.405マス・手前の頂点=+0.20マス・下の頂点=+0.475マス（その奥行きでの1マス=LU*s）。上の縁のまわりに濃い色の影 */
-
-              const gemDraw=(x,y,u,k)=>{const w=.44*u,t=.405*u,f=.2*u,b=.475*u,c=GEMS[k]||GEMS.long;
-               for(const[m,a]of[[1.5,.07],[1.34,.1],[1.18,.14]]){poly([[x,y-t*m*.96],[x+w*m,y-.02*u],[x,y+f*.9],[x-w*m,y-.02*u]]);gx.fillStyle='rgba('+c.h+','+a+')';gx.fill()} /* 上の縁の影 */
-               poly([[x-w,y],[x,y+f],[x+w,y],[x,y+b]]);gx.fillStyle='rgba('+c.u+',.32)';gx.fill(); /* 下の逆さ四角錐 */
-               poly([[x,y-t],[x,y+f],[x-w,y]]);gx.fillStyle='#fff';gx.fill(); /* 左面：白 */
-               const g=gx.createLinearGradient(x,y-t,x+w*.8,y+f);g.addColorStop(0,c.r0);g.addColorStop(1,c.r1);
-               poly([[x,y-t],[x+w,y],[x,y+f]]);gx.fillStyle=g;gx.fill(); /* 右面 */
-               gx.lineWidth=Math.max(1,.05*u);gx.strokeStyle=c.e0;gx.beginPath();gx.moveTo(x-w,y);gx.lineTo(x,y+f);gx.stroke();
-               gx.strokeStyle=c.e1;gx.beginPath();gx.moveTo(x,y+f);gx.lineTo(x+w,y);gx.stroke()};
-              const gemAt=(lp,z,k)=>{const p=pj(lp,z),u=LU*p[2],qb=Math.max(0,Math.round(Math.log(Math.max(u,1))/.0583)),row=GC[k]||GC.long;let sp=row[qb];
-               if(!sp){const ub=Math.exp(qb*.0583),R=Math.ceil(.75*ub)+2,cv=document.createElement('canvas'),c2=cv.getContext('2d'),pg=gx;cv.width=cv.height=Math.ceil(2*R*DPR);c2.setTransform(DPR,0,0,DPR,0,0);c2.lineJoin=c2.lineCap='round';gx=c2;try{gemDraw(R,R,ub,k)}finally{gx=pg}row[qb]=sp={cv,R,ub}}
-               const q=u/sp.ub,r=sp.R*q;gx.drawImage(sp.cv,p[0]-r,p[1]-r,2*r,2*r)};
-              const arrows=ARRS;arrows.length=0;
-              const note=(n,z)=>{
-               const[ty,cr,ar]=n.m,tr=ty==='trace',lp0=n.x/LW-6+.06,lp1=lp0+n.w-.12,dz=tr?.0125:.0165;
-               const a=pj(lp0,z-dz),b=pj(lp1,z-dz),c=pj(lp1,z+dz),d=pj(lp0,z+dz),u=LU*Math.exp(-KAP*z),hgt=a[1]-d[1],P=[a,b,c,d];
-               const kk=ty==='dmg'?'dmg':cr?'crit':ty==='flick'?'flick':ty==='long'?'long':tr?(ar!=null?'flick':'long'):'tap',pal=PAL[kk],r=Math.min(hgt*.26,.22*u);
-               const Lp=(p,q)=>{const x0=d[0]+(c[0]-d[0])*p,y0=d[1]+(c[1]-d[1])*p,x1=a[0]+(b[0]-a[0])*p,y1=a[1]+(b[1]-a[1])*p;return[x0+(x1-x0)*q,y0+(y1-y0)*q]}; /* p:左→右, q:奥→手前 */
-               if(!tr){gx.save();gx.translate(0,.05*u);rpoly(P,r);gx.fillStyle='rgba(6,24,20,.4)';gx.fill();gx.restore()} /* 手前へ落ちる影 */
-               rpoly(P,r);gx.lineWidth=(tr?.3:.14)*u;gx.strokeStyle='rgba('+pal[6]+','+(tr?.3:.2)+')';gx.stroke(); /* 外側のにじみ（トレース以外は細く） */
-               if(!tr){rpoly(P,r);gx.lineWidth=Math.max(1.5,.085*u);gx.strokeStyle=OUT[kk]||OUT.long;gx.stroke()} /* 濃い縁取り：帯の上でも始点・終点の輪郭が埋もれない */
-               if(!tr){
-                rpoly(P,r);const g=vg(pal[0],pal[4],d[1],a[1]);g.addColorStop(.66,pal[0]);g.addColorStop(.78,pal[3]);gx.fillStyle=g;gx.fill(); /* 枠：上は淡い色、手前の帯は濃い色（タップは水色） */
-                const F=[Lp(.03,.1),Lp(.97,.1),Lp(.97,.72),Lp(.03,.72)];rpoly(F,r*.7);gx.fillStyle=vg(pal[1],pal[2],F[0][1],F[3][1]);gx.fill(); /* 内側の面 */
-                const wp=Math.max(1,(b[0]-a[0]+c[0]-d[0])/2),cw=Math.min(.2,.28*hgt/wp);gx.fillStyle=pal[5];
-                for(const p of[.03,.97-cw]){rpoly([Lp(p,.25),Lp(p+cw,.25),Lp(p+cw,.6),Lp(p,.6)],1.2);gx.fill()} /* 両端の四角い印 */
-               }else{
-                const t=PT[kk],g=vg(t[0],t[2],d[1],a[1]);g.addColorStop(.5,t[1]);rpoly(P,r);gx.fillStyle=g;gx.fill();gx.lineWidth=Math.max(1,.04*u);gx.strokeStyle='rgba(255,255,255,.45)';gx.stroke();
-                gemAt((lp0+lp1)/2,z,cr?'crit':ar!=null?'flick':'long'); /* 薄い棒に白い宝石 */
+              return out;
+             };
+             /* arr: [lane, rel, lane, rel, ...] → Float32Array [sx,sy,s,recipW]×N */
+             const projectBatch=(arr,mode,g)=>{
+              if(!arr.length)return new Float32Array(0);
+              if(W){
+               pmem.set(arr,PIN_OFF);
+               W.project_points(arr.length/2,mode,g.cx||0,g.yJ||0,g.yV||0,g.unit||0,KAP,g.lead||1,g.left||0,g.pps||0);
+               return pmem.slice(POUT_OFF,POUT_OFF+arr.length*2);
+              }
+              return projectJS(arr,mode,g);
+             };
+             fetch(AB+'assets/wasm/core.wasm').then(r=>r.arrayBuffer()).then(b=>WebAssembly.instantiate(b,{})).then(({instance})=>{
+              W=instance.exports;pmem=new Float32Array(W.memory.buffer);
+              Particles.attach(pmem);
+             }).catch(()=>{Particles.attach(new Float32Array(PCAP*PSTR))});
+             /* ================= パーティクル（D） =================
+                発生は fx 定義をコンパイルしたエミッタから。物理更新と
+                描画データへの詰め替えは WASM（フォールバックは JS ミラー）。 */
+             const Particles={
+              mem:null,free:[],pending:[],
+              attach(mem){
+               this.mem=mem;this.free=[];
+               for(let i=PCAP-1;i>=0;i--)this.free.push(i);
+               if(!W)this.jsMem=mem;
+              },
+              spawn(f){
+               if(!this.mem||!this.free.length)return;
+               const i=this.free.pop(),b=i*PSTR,m=this.mem;
+               m[b]=f.x;m[b+1]=f.up||0;m[b+2]=f.z||0;m[b+3]=f.vx||0;m[b+4]=f.vy||0;m[b+5]=f.vz||0;
+               m[b+6]=f.life;m[b+7]=f.life;m[b+8]=f.size;m[b+9]=f.rot||0;m[b+10]=f.vrot||0;
+               m[b+11]=f.alpha;m[b+12]=f.frame;m[b+13]=f.grav||0;m[b+14]=f.drag||0;m[b+15]=f.grow||0;
+               m[b+16]=f.r;m[b+17]=f.g;m[b+18]=f.b;m[b+19]=f.fadePow==null?1:f.fadePow;
+               this._alive&&this._alive.add(i);
+              },
+              update(dt){
+               if(!this.mem)return;
+               /* 遅延バースト（cycleCount × repeatInterval） */
+               for(let i=this.pending.length-1;i>=0;i--){
+                const p=this.pending[i];p.at-=dt;
+                if(p.at<=0){this.spawn(p.f);this.pending.splice(i,1)}
                }
-               if(ar!=null){const o=ARW[aI++]||(ARW[aI-1]={});o.z=z;o.x=(a[0]+b[0]+c[0]+d[0])/4;o.y=(a[1]+b[1]+c[1]+d[1])/4;o.u=u;o.w=n.w;o.ang=sg*ar;o.k=cr?'crit':'flick';arrows.push(o)}
+               if(W){W.p_update(dt)}
+               else{ /* JS ミラー（WASM と同じ式） */
+                const m=this.mem;
+                for(let i=0;i<PCAP;i++){
+                 const b=i*PSTR;if(m[b+6]<=0)continue;
+                 m[b+6]-=dt;if(m[b+6]<=0)continue;
+                 const dr=Math.max(0,1-m[b+14]*dt);
+                 m[b+3]*=dr;m[b+5]*=dr;m[b+4]+=m[b+13]*dt;
+                 m[b]+=m[b+3]*dt;m[b+1]+=m[b+4]*dt;m[b+2]+=m[b+5]*dt;
+                 m[b+9]+=m[b+10]*dt;m[b+8]+=m[b+15]*dt;
+                }
+               }
+               /* 死んだ粒を回収 */
+               if(this.free.length<PCAP){
+                const m=this.mem,have=new Set(this.free);
+                for(let i=0;i<PCAP;i++)if(m[i*PSTR+6]<=0&&!have.has(i))this.free.push(i);
+               }
+              },
+              pack(mode,g){
+               if(!this.mem)return new Float32Array(0);
+               if(W){
+                const n=W.p_pack(mode,g.cx||0,g.yJ||0,g.yV||0,g.unit||0,KAP,g.left||0);
+                return pmem.slice(PACK_OFF,PACK_OFF+n*10);
+               }
+               const m=this.mem,out=[];
+               for(let i=0;i<PCAP;i++){
+                const b=i*PSTR,life=m[b+6],max=m[b+7];
+                if(life<=0||max<=0)continue;
+                const t=life/max;let a=m[b+11];
+                if(m[b+19]===1)a*=t;else if(m[b+19]===2)a*=t*t;
+                a*=Math.min(1,(1-t)/0.08);
+                let s,x,y;
+                if(mode===0){s=Math.exp(-KAP*clamp(m[b+2],0,1));x=g.cx+(m[b]-6)*g.unit*s;y=g.yV+(g.yJ-g.yV)*s-m[b+1]*g.unit*s}
+                else{s=1;x=g.left+m[b]*g.unit;y=g.yJ-m[b+1]*g.unit}
+                out.push(x,y,m[b+8]*g.unit*s,m[b+9],a,m[b+12],m[b+16],m[b+17],m[b+18],s);
+               }
+               return new Float32Array(out);
+              }
+             };
+             /* ---- fx 定義のコンパイル（MikuMikuWorld 形式の ParticleSystem JSON） ---- */
+             const val=v=>{
+              if(!v)return 0;
+              if(v.mode===3)return v.randomMin+(v.randomMax-v.randomMin)*Math.random();
+              if(v.mode===1){
+               const c=(v.curveMin&&v.curveMin.length?v.curveMin:v.curveMax)||[];
+               if(c.length)return c.reduce((a,k)=>a+k.value,0)/c.length;
+               return v.constant||0;
+              }
+              if(v.mode===2)return (v.randomMin||v.constant||0)+((v.randomMax||v.constant||0)-(v.randomMin||v.constant||0))*Math.random();
+              return v.constant||0;
+             };
+             const colAt=(grad,u)=>{
+              if(!grad||!grad.length)return[1,1,1,1];
+              let a=grad[0],b=grad[grad.length-1];
+              for(let i=0;i<grad.length;i++){if(grad[i].time<=u)a=grad[i];if(grad[i].time>=u){b=grad[i];break}}
+              const f=b.time>a.time?clamp((u-a.time)/(b.time-a.time),0,1):0;
+              return[a.r+(b.r-a.r)*f,a.g+(b.g-a.g)*f,a.b+(b.b-a.b)*f,a.a+(b.a-a.a)*f];
+             };
+             const compileEmitter=ps=>{
+              const tsa=ps.textureSheetAnimation||{numTilesX:8,numTilesY:8};
+              const tilesX=tsa.numTilesX||8,tilesY=tsa.numTilesY||8;
+              const frame=Math.abs(Math.round(val(tsa.startFrame)*tilesX*tilesY))%(tilesX*tilesY);
+              const colE=ps.colorOverLifetime&&ps.colorOverLifetime.gradientKeysMin;
+              const midA=colE?colAt(colE,0.35)[3]:1;
+              const sc=ps.startColor||{};
+              const c0=sc.colorMin||{r:1,g:1,b:1,a:1};
+              return{
+               life:()=>Math.max(0.05,val(ps.startLifetime)),
+               speed:()=>val(ps.startSpeed),
+               sizeX:()=>val(ps.startSize&&ps.startSize.x),sizeY:()=>val(ps.startSize&&ps.startSize.y),
+               grav:val(ps.gravityModifier),rot:()=>val(ps.startRotation&&ps.startRotation.z),
+               r:c0.r,g:c0.g,b:c0.b,a:(c0.a==null?1:c0.a)*midA,
+               tilesX,tilesY,frame,
+               angle:(ps.shape&&ps.shape.angle)||25,
+               bursts:(ps.emission&&ps.emission.bursts)||[],
+               rate:val(ps.emission&&ps.emission.rateOverTime),
+               max:ps.maxParticles||10
               };
-              const fade=z=>z<=zM?1:0; /* 実機のノーツは奥の端で最初から不透明（フェードインしない） */
-              /* 同時押し線（実機のスクリーンショット 2388×1668 から計測）：同時刻のタップ・フリック・ロングの始点/終点・トレースを、隣り合う2つずつ結ぶ。
-                 ロングの中継点・ダメージ・ガイドの中継は対象外。線はノーツと同じ遠近で奥行きに寝かせた細い板：ノーツ縦幅の中心を通り、
-                 左ノーツの右レーン境界〜右ノーツの左レーン境界（ノーツ縁との間は0.06マスのすき間）。太さはノーツ高さの約12%（奥行き±0.00205）、
-                 色は白（#eaeaec 相当＝不透明度.91）の単色で光彩・影なし。ノーツの下に描く */
-              {const SM=SMM;SM.clear();smI=0;
-               for(const it of items){const n=it.n;if(!n||!n.m||n.m[0]==='relay'||n.m[0]==='dmg')continue;const key=Math.round(n.b*1e5);let a=SM.get(key);if(!a){a=SMP[smI++]||(SMP[smI-1]=[]);a.length=0;SM.set(key,a)}a.push(it)}
-               gx.globalAlpha=1;gx.fillStyle='rgba(255,255,255,.91)';
-               for(const a of SM.values()){if(a.length<2)continue;a.sort((p,q)=>p.n.x-q.n.x);
-                for(let i=0;i+1<a.length;i++){const A=a[i],B=a[i+1],l0=A.n.x/LW-6+A.n.w,l1=B.n.x/LW-6;if(l1-l0<.01)continue;
-                 const zl=.00205;poly([pj(l0,A.z-zl),pj(l1,B.z-zl),pj(l1,B.z+zl),pj(l0,A.z+zl)]);gx.fill()}}}
-              items.sort((a,b)=>b.z-a.z);
-              for(const it of items){gx.globalAlpha=fade(it.z);if(it.g)gemAt(it.lp,it.z,it.k);else note(it.n,it.z)}
-              arrows.sort((a,b)=>b.z-a.z);
-              for(const q of arrows){gx.globalAlpha=fade(q.z);flick(q.x,q.y,q.u,q.w,q.ang,q.k)}
-              gx.globalAlpha=1;
-              /* ヒットエフェクト（実機の画面収録から再現）：ノーツが判定線に着いた瞬間から約0.6秒。光の柱は約0.13秒で消え、枠の発光とひし形はゆっくり薄れる */
-              {let l2=0,h2=HE.length;while(l2<h2){const m=(l2+h2)>>1;if(HE[m].t<t-.95)l2=m+1;else h2=m}
-               gx.globalCompositeOperation='lighter';
-               for(let i=l2;i<HE.length&&HE[i].t<=t;i++){
-                const e=HE[i],a=t-e.t,ty=e.m[0],k=e.m[1]?'crit':ty==='flick'||(ty==='trace'&&e.m[2]!=null)?'flick':ty==='tap'?'tap':'long',p=ty==='relay'||ty==='trace'?.55:1,l0=e.x/LW-6;
-                const bm=a<.13?1-.35*a/.13:Math.max(0,.65*(1-(a-.13)/.1)),gl=a<.04?.82+4.5*a:Math.exp(-(a-.04)*7.5),dm=Math.min(1,Math.max(0,a-.05)/.04)*Math.exp(-Math.max(0,a-.12)*5),ll=a<.125?1-.45*a/.11:0,lu=a<.155?1-.4*a/.155:0;
-                burst(l0,l0+e.w,k,bm*p,gl*p,dm*p,i,a,ll*p,lu*p);shard(i,l0,l0+e.w,k,a);crys(i,l0,l0+e.w,k,a);if(ty==='flick')stars(i,l0,l0+e.w,a);
+             };
+             const FXDefs={};
+             const loadFX=async pat=>{
+              const names=['fx_lane_critical','fx_lane_critical_flick','fx_lane_default','fx_note_critical_flick_aura','fx_note_critical_flick_flash','fx_note_critical_flick_gen','fx_note_critical_long_aura','fx_note_critical_long_gen','fx_note_critical_long_hold_gen','fx_note_critical_long_hold_gen_aura','fx_note_critical_long_hold_via_aura','fx_note_critical_normal_aura','fx_note_critical_normal_gen','fx_note_critical_trace_aura','fx_note_flick_aura','fx_note_flick_flash','fx_note_flick_gen','fx_note_hold_aura','fx_note_long_aura','fx_note_long_gen','fx_note_long_hold_gen','fx_note_long_hold_via_aura','fx_note_normal_aura','fx_note_normal_gen','fx_note_trace_aura'];
+              await Promise.all(names.map(async n=>{
+               try{
+                const j=await(await fetch(`${AB}assets/effects/${pat}/${n}.json`)).json();
+                const emitters=[];
+                const walk=ps=>{emitters.push(compileEmitter(ps));(ps.children||[]).forEach(walk)};
+                walk(j);FXDefs[n]=emitters;
+               }catch(e){}
+              }));
+             };
+             /* レーンの光（fx_lane_*）は粒ではなく帯状クアッドとして出す */
+             const laneGlows=[];
+             const spawnFX=(name,x,w)=>{
+              const emitters=FXDefs[name];if(!emitters)return;
+              if(name.startsWith('fx_lane')){
+               const e=emitters[0];
+               laneGlows.push({x,w,t0:performance.now()/1000,life:Math.max(0.2,e.life()),a:e.a,r:e.r,g:e.g,b:e.b});
+               return;
+              }
+              for(const e of emitters){
+               let count=0;
+               e.bursts.forEach(bst=>{
+                const c=Math.min(bst.countMax||0,e.max);
+                for(let cy=0;cy<(bst.cycleCount||1);cy++)
+                 for(let i=0;i<c;i++){
+                  const f=mkParticle(e,x,w);if(!f)continue;
+                  if(cy===0&&(bst.time||0)===0)Particles.spawn(f);
+                  else Particles.pending.push({at:(bst.time||0)+cy*(bst.repeatInterval||0.01),f});
+                  count++;
+                 }
+               });
+               if(!e.bursts.length&&e.rate>0){ /* 持続放出はティック間隔で近似 */
+                const c=Math.min(e.max,Math.max(1,Math.round(e.rate*0.25)));
+                for(let i=0;i<c;i++){const f=mkParticle(e,x,w);if(f)Particles.spawn(f)}
                }
-               gx.globalCompositeOperation='source-over'}
-              gx.restore();
+              }
              };
-             /* 表示の切替（譜面再生画面 ⇔ ゲーム画面）。描画に失敗したときは譜面再生画面へ戻して再生を止めない */
-             const draw=()=>{if(view==='game'){try{drawGame();return}catch(e){console.error(e);setView('flat');$('astat').textContent='ゲーム画面の描画に失敗したため、譜面画面に戻しました'}}drawFlat()};
-             const setView=v=>{view=v==='game'?'game':'flat';const g=view==='game',b=$('vw');gcv.style.display=bgc.style.display=g?'block':'none';$('stage').style.display=g?'none':'block';b.title=g?'譜面画面に切り替え':'ゲーム画面に切り替え';b.setAttribute('aria-label',g?'表示切り替え（譜面画面へ）':'表示切り替え（ゲーム画面へ）');b.setAttribute('aria-pressed',g);if(g)fit();inv();save()};
-             $('vw').onclick=()=>setView(view==='game'?'flat':'game');setView(view);
-             const ui=()=>{
-              const a=atT(cur);setT($('hB'),'小節 '+Math.floor(a.bar+1e-9));setT($('hBpm'),'BPM '+(+a.bpm.toFixed(2)));setT($('hHs'),'速度 ×'+(+lay(mainH)(cur,1).toFixed(2)));
-              setT($('tcur'),fmt(cur));if(!drag)$('seek').value=Math.round(cur*100);
+             const mkParticle=(e,x,w)=>{
+              const sp=e.speed()*0.16,ang=(Math.random()*2-1)*Math.min(80,e.angle)*Math.PI/180;
+              const sizeU=e.sizeX();
+              /* タイルは effect.png 全体の 8x8 グリッドへ正規化してから渡す
+                 （エミッタごとの numTiles 違いは中心セルの対応で吸収する） */
+              const cu=((e.frame%e.tilesX)+0.5)/e.tilesX,cv=(Math.floor(e.frame/e.tilesX)+0.5)/e.tilesY;
+              const frame8=Math.min(63,Math.floor(cv*8)*8+Math.floor(cu*8));
+              return{
+               x:x+(Math.random()-0.5)*Math.max(0.2,w*0.7),up:0,z:0.01+Math.random()*0.03,
+               vx:Math.sin(ang)*sp+(Math.random()-0.5)*sp*0.4,vy:Math.cos(ang)*sp,vz:(Math.random()-0.5)*0.04,
+               life:e.life(),size:clamp(sizeU*0.16,0.05,2.4),rot:Math.random()*6.28,vrot:(Math.random()-0.5)*3,
+               alpha:clamp(e.a,0,1),frame:frame8,r:e.r,g:e.g,b:e.b,
+               grav:-e.grav*2.5,drag:0.4,grow:sizeU>2?0.5:0,fadePow:1
+              };
              };
-             const setPlay=on=>{playing=on;$('bPlay').innerHTML=on?'<b aria-hidden="true">❚❚</b>一時停止':'<b aria-hidden="true">▶</b>再生';$('bPlay').setAttribute('aria-pressed',on);if(on){if(cur>=dur-.01)cur=-LEAD;last=performance.now();getCtx().resume();aStart()}else aStop();inv()};
-             const seek=t=>{cur=Math.min(dur,Math.max(-LEAD,t));inv();if(playing){if(drag)kill();else aStart()}};
-             const bar=()=>atT(cur).bar,toBar=b=>seek(tm(Math.max(0,Math.min(total,b))));
-             const prevBar=()=>{if(cur<=0)return seek(-LEAD);const b=bar(),f=Math.floor(b+1e-9);toBar(b-f>.02?f:f-1)},nextBar=()=>toBar(Math.floor(bar()+1e-9)+1);
-             function loop(ts){raf=0;
-              if(playing){cur=src&&ctx.state==='running'?Math.min(dur,aT()):cur+Math.min(.1,Math.max(0,(ts-last)/1000))*rate;last=ts;need=true;if(cur>=dur){cur=dur;setPlay(false)}}
-              if(need){need=false;draw();ui()}
-              if(playing&&!raf&&!document.hidden)raf=requestAnimationFrame(loop);
-             }
-             /* ---- 操作 ---- */
-             const seekEl=$('seek');seekEl.min=Math.round(-LEAD*100);seekEl.max=Math.round(dur*100);seekEl.step=1;$('tend').textContent=fmt(dur);
-             seekEl.oninput=()=>seek(+seekEl.value/100);
-             const endDrag=()=>{if(drag){drag=false;if(playing)aStart()}};seekEl.addEventListener('pointerdown',()=>drag=true);addEventListener('pointerup',endDrag);seekEl.addEventListener('change',endDrag);
-             $('bPlay').onclick=()=>setPlay(!playing);
-
-             $('bStart').onclick=()=>seek(-LEAD);
-             $('bBack').onclick=()=>seek(cur-5);$('bFwd').onclick=()=>seek(cur+5);
-                    const setPps=()=>{pps=JY/TT(spd)/(rk==='keep'?rate:1);inv()};
-             $('rate').oninput=e=>{const r=Math.round(+e.target.value*100)/100;$('ratev').textContent=r.toFixed(2)+'×';if(r===rate)return;rate=r;setPps();save();aStop();ab=null;clearTimeout(rtm);rtm=setTimeout(load,300)};
-             $('rk').onchange=e=>{rk=e.target.value==='keep'?'keep':'all';setPps();save()};
-             $('sf').onchange=e=>{sf=!e.target.checked;prep();inv();save()};
-             const applyAp=()=>{tp=JY*ap/100;clp.setAttribute('y',tp);clp.setAttribute('height',JY+2-tp);cov.setAttribute('height',tp);bl.setAttribute('y',tp-1);bl.setAttribute('display',tp>0?'inline':'none');$('apv').textContent=ap+'%';inv()};
-             $('ap').oninput=e=>{ap=Math.round(Math.min(100,Math.max(0,+e.target.value||0)));applyAp();save()};
-             const setSpd=v=>{spd=Math.round(Math.min(12,Math.max(1,+v||6))*100)/100;setPps();$('spd').value=spd;$('spdv').textContent=spd.toFixed(2);inv();save()};
-             $('spd').oninput=e=>setSpd(e.target.value);
-             const setOp=()=>{$('slv').textContent=Math.round(sl*100)+'%';$('gdv').textContent=Math.round(gd*100)+'%';inv()};
-             $('slO').value=Math.round(sl*100);$('gdO').value=Math.round(gd*100);setOp();
-             $('slO').oninput=e=>{sl=e.target.value/100;setOp();save()};$('gdO').oninput=e=>{gd=e.target.value/100;setOp();save()};
-             const setMir=()=>{gX.setAttribute('transform',mir?`translate(${SW} 0) scale(-1 1)`:'');$('mir').checked=mir;inv()};
-             $('mir').onchange=e=>{mir=e.target.checked;setMir();save()};setMir();
-             $('tg').onclick=()=>{const p=$('panel');p.hidden=!p.hidden;$('tg').setAttribute('aria-expanded',!p.hidden);$('tg').innerHTML=p.hidden?'表示設定':'表示設定<span class="wd">を隠す</span>'};
-             addEventListener('keydown',e=>{
-              if(e.ctrlKey||e.metaKey||e.altKey)return;
-              const t=e.target,tag=t&&t.tagName;if(tag==='SELECT'||(tag==='INPUT'&&t.type==='range'&&/^Arrow|^Home|^End/.test(e.key)))return;
-              const k=e.key,d=e.shiftKey?5:1;
-              if(k===' '){if(tag==='BUTTON')return;setPlay(!playing)}
-              else if(k==='ArrowLeft')seek(cur-d);else if(k==='ArrowRight')seek(cur+d);
-              else if(k==='ArrowUp')nextBar();else if(k==='ArrowDown')prevBar();
-              else if(k==='Home')seek(-LEAD);else if(k==='End')seek(dur);else if(k==='v'||k==='V')setView(view==='game'?'flat':'game');else return;
-              e.preventDefault();
+             const FXforHit=h=>{
+              const lane=h.cr?'fx_lane_critical':'fx_lane_default';
+              if(h.kind==='tick')return['fx_note_long_hold_gen'];
+              if(h.kind==='flick')return h.cr?['fx_lane_critical_flick','fx_note_critical_flick_gen','fx_note_critical_flick_flash','fx_note_critical_flick_aura']:['fx_note_flick_gen','fx_note_flick_flash','fx_note_flick_aura'];
+              if(h.kind==='long')return h.cr?['fx_note_critical_long_gen','fx_note_critical_long_aura']:['fx_note_long_gen','fx_note_long_aura'];
+              if(h.kind==='trace')return[h.cr?'fx_note_critical_trace_aura':'fx_note_trace_aura'];
+              if(h.kind==='relay')return['fx_note_hold_aura'];
+              return[lane,h.cr?'fx_note_critical_normal_gen':'fx_note_normal_gen',h.cr?'fx_note_critical_normal_aura':'fx_note_normal_aura'];
+             };
+             Engine.onHit(h=>{if(Engine.playing)FXforHit(h).forEach(n=>spawnFX(n,h.lane,h.w))});
+             /* ================= WebGL2 レンダラ（A） =================
+                ゲーム画面は全てこのキャンバスの中。DOM は外側の操作パネルだけ。
+                - 全ノーツ・帯・矢印はテクスチャアトラスから切り出して描く
+                - 同じテクスチャのクアッドはインスタンシングで 1 回の命令に集約
+                - 各クアッド頂点は reciprocalW を持ち、フラグメント側で
+                  uv = (uv*recipW の補間) / (recipW の補間) の透視補正を行う
+                - 描画解像度の基準は 1920x1080（ステージ素材 2048x1176） */
+             const cv=$('gl'),gl=cv.getContext('webgl2',{antialias:false,alpha:false,powerPreference:'high-performance'});
+             const PAL={tap:[0.72,0.62,0.96],long:[0.48,0.93,0.85],flick:[1,0.75,0.84],crit:[0.96,0.78,0.41],dmg:[0.66,0.55,0.82],trace:[0.35,0.94,0.66]};
+             let RW=0,RH=0;
+             const fit=()=>{
+              const r=cv.parentElement.getBoundingClientRect();
+              const dpr=Math.min(2,window.devicePixelRatio||1);
+              const sc=Math.max(0.5,Math.min(dpr,1920/Math.max(1,r.width),1080/Math.max(1,r.height)));
+              RW=Math.max(2,Math.round(r.width*sc));RH=Math.max(2,Math.round(r.height*sc));
+              if(cv.width!==RW||cv.height!==RH){cv.width=RW;cv.height=RH}
+              gl.viewport(0,0,RW,RH);
+             };
+             const sh=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s};
+             const prog=(vs,fs)=>{const p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,vs));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);return p};
+             const FRAG=`#version 300 es
+              precision mediump float;uniform sampler2D uTex;
+              in vec2 vUvR;in float vRecip;in vec4 vCol;out vec4 o;
+              void main(){vec2 uv=vUvR/max(vRecip,1e-6);vec4 t=texture(uTex,uv);o=t*vCol;if(o.a<0.004)discard;}`;
+             const quadProg=prog(`#version 300 es
+              layout(location=0)in vec2 aCorner;layout(location=1)in vec4 iPos;layout(location=2)in vec4 iUV;layout(location=3)in vec4 iCol;layout(location=4)in vec2 iRR;
+              uniform vec2 uRes;out vec2 vUvR;out float vRecip;out vec4 vCol;
+              void main(){vec2 p=aCorner*vec2(iPos.z,iPos.w);float c=cos(iRR.x),s=sin(iRR.x);p=vec2(p.x*c-p.y*s,p.x*s+p.y*c)+iPos.xy;
+               vec2 uv=mix(iUV.xy,iUV.zw,aCorner+0.5);vUvR=uv*iRR.y;vRecip=iRR.y;vCol=iCol;
+               gl_Position=vec4(p.x/uRes.x*2.0-1.0,1.0-p.y/uRes.y*2.0,0.0,1.0);}`,FRAG);
+             const stripProg=prog(`#version 300 es
+              layout(location=0)in vec2 aXY;layout(location=1)in vec2 aUV;layout(location=2)in vec4 aCol;layout(location=3)in float aRecip;
+              uniform vec2 uRes;out vec2 vUvR;out float vRecip;out vec4 vCol;
+              void main(){vUvR=aUV*aRecip;vRecip=aRecip;vCol=aCol;
+               gl_Position=vec4(aXY.x/uRes.x*2.0-1.0,1.0-aXY.y/uRes.y*2.0,0.0,1.0);}`,FRAG);
+             /* ---- テクスチャ ---- */
+             const Tex={};
+             const mkTex=(key,placeholder)=>{
+              const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+              gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(placeholder||[255,255,255,255]));
+              gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+              gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+              Tex[key]=t;return t;
+             };
+             const loadTex=(key,url,repeat)=>{
+              const t=mkTex(key,[40,50,70,255]),img=new Image();img.referrerPolicy='no-referrer';
+              img.onload=()=>{gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+               gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,repeat?gl.REPEAT:gl.CLAMP_TO_EDGE);
+               gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,repeat?gl.REPEAT:gl.CLAMP_TO_EDGE);};
+              img.src=url;return t;
+             };
+             mkTex('white',[255,255,255,255]);
+             loadTex('stage',AB+'assets/stage.png');
+             loadTex('overlay',AB+'assets/bg_overlay.png');
+             loadTex('effect',AB+'assets/effect.png');
+             let Atlas=null;
+             const loadSkin=async()=>{
+              const n=skin==='notes_02'?'02':'01';
+              loadTex('notes',`${AB}assets/notes_${n}.png`);
+              loadTex('band',`${AB}assets/long_band_${n}.png`,true);
+              try{Atlas=await(await fetch(`${AB}assets/notes_${n}.atlas.json`)).json()}catch(e){Atlas=null}
+             };
+             loadSkin();
+             if(D.jk){const im=new Image();im.referrerPolicy='no-referrer';im.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=24;c.getContext('2d').drawImage(im,0,0,24,24);const t=mkTex('jk',[20,20,30,255]);gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c)}catch(e){}};im.src=D.jk}
+             loadFX(fxPat);
+             /* ---- クアッドバッチ（テクスチャ単位でセグメント化し、順に描く） ---- */
+             const QB={
+              cap:16384,data:null,n:0,segs:[],
+              vao:gl.createVertexArray(),buf:gl.createBuffer(),
+              init(){
+               this.data=new Float32Array(this.cap*14);
+               gl.bindVertexArray(this.vao);
+               const qb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,qb);
+               gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-0.5,-0.5, 0.5,-0.5, -0.5,0.5, 0.5,0.5]),gl.STATIC_DRAW);
+               gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+               gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);
+               gl.bufferData(gl.ARRAY_BUFFER,this.cap*14*4,gl.DYNAMIC_DRAW);
+               const st=14*4;
+               [[1,4,0],[2,4,16],[3,4,32],[4,2,48]].forEach(([loc,sz,off])=>{gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sz,gl.FLOAT,false,st,off);gl.vertexAttribDivisor(loc,1)});
+               gl.bindVertexArray(null);
+              },
+              begin(tex,add){this.segs.push({tex,add:!!add,start:this.n,count:0})},
+              push(cx,cy,w,h,uv,col,rot,recip){
+               if(this.n>=this.cap)return;
+               const o=this.n*14,d=this.data;
+               d[o]=cx;d[o+1]=cy;d[o+2]=w;d[o+3]=h;
+               d[o+4]=uv[0];d[o+5]=uv[1];d[o+6]=uv[2];d[o+7]=uv[3];
+               d[o+8]=col[0];d[o+9]=col[1];d[o+10]=col[2];d[o+11]=col[3];
+               d[o+12]=rot||0;d[o+13]=recip==null?1:recip;
+               this.n++;
+              },
+              flush(){
+               if(!this.n)return;
+               gl.useProgram(quadProg);gl.uniform2f(gl.getUniformLocation(quadProg,'uRes'),RW,RH);
+               gl.bindVertexArray(this.vao);gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);
+               gl.bufferSubData(gl.ARRAY_BUFFER,0,this.data.subarray(0,this.n*14));
+               gl.activeTexture(gl.TEXTURE0);gl.uniform1i(gl.getUniformLocation(quadProg,'uTex'),0);
+               for(const s of this.segs){
+                if(!s.count)continue;
+                gl.bindTexture(gl.TEXTURE_2D,Tex[s.tex]||Tex.white);
+                if(s.add)gl.blendFunc(gl.SRC_ALPHA,gl.ONE);else gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+                gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,s.count);
+                /* drawArraysInstanced は開始インスタンスを指定できないため、セグメントは
+                   バッファ先頭から詰め直して描く方式にする（下記 drawSeg 参照） */
+               }
+               this.n=0;this.segs=[];
+              }
+             };
+             QB.init();
+             /* セグメント描画は「テクスチャごとに別の QB」を使う方が確実なので、
+                用途別に 4 つのバッチを持つ（各 1 回の instanced draw / テクスチャ）。 */
+             const mkQB=()=>{const q=Object.create(QB);q.data=new Float32Array(q.cap*14);q.n=0;q.segs=[];q.buf=gl.createBuffer();q.vao=gl.createVertexArray();
+              gl.bindVertexArray(q.vao);
+              const cb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cb);
+              gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-0.5,-0.5, 0.5,-0.5, -0.5,0.5, 0.5,0.5]),gl.STATIC_DRAW);
+              gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+              gl.bindBuffer(gl.ARRAY_BUFFER,q.buf);gl.bufferData(gl.ARRAY_BUFFER,q.cap*14*4,gl.DYNAMIC_DRAW);
+              const st=14*4;[[1,4,0],[2,4,16],[3,4,32],[4,2,48]].forEach(([loc,sz,off])=>{gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sz,gl.FLOAT,false,st,off);gl.vertexAttribDivisor(loc,1)});
+              gl.bindVertexArray(null);return q};
+             const qbBack=mkQB(),qbWhite=mkQB(),qbNotes=mkQB(),qbFx=mkQB();
+             const drawQB=(q,tex,add)=>{
+              if(!q.n)return;
+              gl.useProgram(quadProg);gl.uniform2f(gl.getUniformLocation(quadProg,'uRes'),RW,RH);
+              gl.bindVertexArray(q.vao);gl.bindBuffer(gl.ARRAY_BUFFER,q.buf);
+              gl.bufferSubData(gl.ARRAY_BUFFER,0,q.data.subarray(0,q.n*14));
+              gl.activeTexture(gl.TEXTURE0);gl.uniform1i(gl.getUniformLocation(quadProg,'uTex'),0);
+              gl.bindTexture(gl.TEXTURE_2D,Tex[tex]||Tex.white);
+              if(add)gl.blendFunc(gl.SRC_ALPHA,gl.ONE);else gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+              gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,q.n);
+              q.n=0;
+             };
+             const UVW=[0,0,1,1];
+             const frameUV=name=>{
+              if(!Atlas||!Atlas.frames[name])return null;
+              const f=Atlas.frames[name];
+              return[f.x/Atlas.width,f.y/Atlas.height,(f.x+f.w)/Atlas.width,(f.y+f.h)/Atlas.height,0,f.h/f.w];
+             };
+             const bodyUV=kind=>frameUV('body_'+kind)||(kind==='crit'&&frameUV('body_crit_gold'))||(kind==='dmg'&&frameUV('body_tap'))||frameUV('body_tap')||frameUV('body_flick');
+             const gemUV=kind=>{
+              if(!Atlas)return null;
+              const want=kind==='crit'?'gem_crit':kind==='flick'?'gem_flick':'gem_long';
+              return frameUV(want)||(Atlas.gems&&Atlas.gems.length?frameUV(Atlas.gems[0]):null);
+             };
+             const arrowUV=(cr,diag,wc)=>{
+              if(!Atlas||!Atlas.arrows)return null;
+              const col=cr?'crit':'flick',or=diag?'diag':'up';
+              const list=Atlas.arrows.filter(n=>{const f=Atlas.frames[n];return n.includes('_'+col+'_'+or+'_')&&f&&f.fill<0.87})
+               .sort((a,b)=>Atlas.frames[a].w-Atlas.frames[b].w);
+              if(!list.length)return null;
+              const i=clamp(Math.round((wc-1)/5*(list.length-1)),0,list.length-1);
+              return frameUV(list[i]);
+             };
+             /* ---- 帯（ストリップ） ---- */
+             const Strip={
+              data:new Float32Array(65536*9),n:0,vao:gl.createVertexArray(),buf:gl.createBuffer(),
+              init(){gl.bindVertexArray(this.vao);gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);
+               gl.bufferData(gl.ARRAY_BUFFER,this.data.byteLength,gl.DYNAMIC_DRAW);
+               const st=9*4;[[0,2,0],[1,2,8],[2,4,16],[3,1,32]].forEach(([loc,sz,off])=>{gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sz,gl.FLOAT,false,st,off)});
+               gl.bindVertexArray(null)},
+              v(x,y,u,v,col,recip){if(this.n>=65536)return;const o=this.n*9,d=this.data;
+               d[o]=x;d[o+1]=y;d[o+2]=u;d[o+3]=v;d[o+4]=col[0];d[o+5]=col[1];d[o+6]=col[2];d[o+7]=col[3];d[o+8]=recip;this.n++},
+              draw(tex){if(this.n<2)return;
+               gl.useProgram(stripProg);gl.uniform2f(gl.getUniformLocation(stripProg,'uRes'),RW,RH);
+               gl.bindVertexArray(this.vao);gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);
+               gl.bufferSubData(gl.ARRAY_BUFFER,0,this.data.subarray(0,this.n*9));
+               gl.activeTexture(gl.TEXTURE0);gl.uniform1i(gl.getUniformLocation(stripProg,'uTex'),0);
+               gl.bindTexture(gl.TEXTURE_2D,Tex[tex]||Tex.white);
+               gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+               gl.drawArrays(gl.TRIANGLE_STRIP,0,this.n);this.n=0}
+             };
+             Strip.init();
+             const stripBand=Object.create(Strip);stripBand.data=new Float32Array(65536*9);stripBand.n=0;stripBand.buf=gl.createBuffer();stripBand.vao=gl.createVertexArray();stripBand.init();
+             /* ================= フレーム構築 ================= */
+             const layerPosCache=new Map();
+             const posOf=layer=>{
+              if(!sf)return Engine.time;
+              if(!layerPosCache.has(layer))layerPosCache.set(layer,qAt(layer,Engine.time));
+              return layerPosCache.get(layer);
+             };
+             /* ノーツをレイヤー別に索引化（DrawData は q 順。t 順もここで用意） */
+             const groupsQ=new Map(),groupsT=new Map();
+             D.nodes.forEach(n=>{
+              if(!groupsQ.has(n.layer))groupsQ.set(n.layer,[]);
+              groupsQ.get(n.layer).push(n);
              });
-             $('vocal').onchange=e=>{vi=+e.target.value;load()}; /* この譜面を開いている間だけの切り替え */
-             const setVol=()=>{$('volv').textContent=Math.round(vl*100)+'%'};$('vol').value=Math.round(vl*100);setVol();$('vol').oninput=e=>{vl=e.target.value/100;if(gn)gn.gain.value=vl;setVol();save()};
-             const setAo=()=>{$('aov').textContent=(ao>=0?'+':'')+ao.toFixed(2)+'秒'};$('ao').value=ao;setAo();$('ao').oninput=e=>{ao=+e.target.value;setAo();save();if(playing){aStop();aStart()}};
-             initA();setSpd(spd);$('rate').value=rate;$('ratev').textContent=rate.toFixed(2)+'×';$('rk').value=rk;$('sf').checked=!sf;$('ap').value=ap;applyAp();draw();ui();
-             /* 非表示（タブ／アプリの切替・画面ロック・ページの退避）になったら、再生・音声・描画ループを止める。
-                Safariは visibilitychange が届かない遷移があるため pagehide / pageshow も見る。復帰時は止まったままの rAF を捨てて描画を再開し、
-                バックグラウンド中に破棄されることがある Canvas の内容（背景・スプライト）を作り直す（再生は自動では再開しない） */
-             const HM='非表示になったため一時停止しました',isHid=()=>document.hidden||document.visibilityState==='hidden';
-             const goHide=()=>{if(raf){cancelAnimationFrame(raf);raf=0}if(playing){setPlay(false);$('astat').textContent=HM}try{if(ctx&&ctx.state==='running')ctx.suspend().catch(()=>{})}catch(e){}};
-             const goShow=()=>{if(isHid())return;if(raf){cancelAnimationFrame(raf);raf=0}bgK='';GCD=0;need=true;inv();if($('astat').textContent===HM)setTimeout(()=>{if($('astat').textContent===HM)$('astat').textContent=''},4000)};
-             document.addEventListener('visibilitychange',()=>isHid()?goHide():goShow());addEventListener('pagehide',goHide);addEventListener('pageshow',goShow);
-             window.__pl={setView,get view(){return view},seek,draw,ui,tm,atT,lay,setSpd,setPlay,prevBar,nextBar,N,C,LN,dur,get t(){return cur},get playing(){return playing},get pps(){return pps},JY};
+             for(const[k,a]of groupsQ)groupsT.set(k,a.slice().sort((x,y)=>x.t-y.t));
+             const chainsByKey=D.chains.slice();
+             const rangeIn=(arr,key,lo,hi)=>{
+              let a=0,b=arr.length;
+              while(a<b){const m=(a+b)>>1;if(arr[m][key]<lo)a=m+1;else b=m}
+              const out=[];for(let i=a;i<arr.length&&arr[i][key]<=hi;i++)out.push(arr[i]);
+              return out;
+             };
+             let drawCalls=0;
+             const draw=()=>{
+              fit();layerPosCache.clear();
+              const W=RW,H=RH,t=Engine.time;
+              const game=view==='game';
+              const lead=leadT();
+              const sFar=SF+(ap/100)*(1-SF),zFar=-Math.log(Math.max(sFar,1e-4))/KAP,relMax=lead*zFar/ZF,relMin=-lead*0.18;
+              const g=game?{cx:W/2,yJ:H*0.7347,yV:H*0.0574,unit:W*0.0658,lead,left:0,pps:0}
+                          :{cx:0,yJ:H*0.857,yV:0,unit:Math.min(W*0.045,H*0.075),lead,left:W/2-Math.min(W*0.045,H*0.075)*6,pps:H*0.857/lead};
+              const mode=game?0:1;
+              gl.clearColor(0.05,0.07,0.11,1);gl.clear(gl.COLOR_BUFFER_BIT);
+              gl.enable(gl.BLEND);
+              drawCalls=0;
+              /* --- 背景：ステージ＋オーバーレイ（ゲーム画面）／簡易レーン（フラット） --- */
+              if(game){
+               const asp=2048/1176,cAsp=W/H;let bw,bh;
+               if(cAsp>asp){bw=W;bh=W/asp}else{bh=H;bw=H*asp}
+               const bb=bgBright/100;
+               qbBack.push(W/2,H/2,bw,bh,UVW,[bb,bb,bb,1],0,1);
+               drawQB(qbBack,'stage');drawCalls++;
+               /* オーバーレイは別テクスチャなので分けて描く（全面・cover率） */
+               qbBack.push(W/2,H/2,W,H,UVW,[1,1,1,cover/100],0,1);
+               drawQB(qbBack,'overlay');drawCalls++;
+              }else{
+               qbBack.push(W/2,H/2,W,H,UVW,[0.07,0.09,0.14,1],0,1);
+               if(Tex.jk)qbBack.push(W/2,H/2,W,H,UVW,[1,1,1,0.12],0,1);
+               drawQB(qbBack,Tex.jk?'jk':'white');drawCalls++;
+               for(let i=0;i<12;i++){
+                const x=g.left+(i+0.5)*g.unit;
+                qbWhite.push(x,g.yJ/2,g.unit,g.yJ,UVW,i%2?[0.10,0.15,0.23,1]:[0.11,0.17,0.26,1],0,1);
+               }
+              }
+              /* --- 拍線 --- */
+              {
+               const key=sf?'q':'t',pos=posOf(D.mhs);
+               const vis=rangeIn(D.beats,key,pos+relMin,pos+relMax);
+               const pts=[];vis.forEach(b=>pts.push(6,b[key]-pos));
+               const pr=projectBatch(pts,mode,g);
+               vis.forEach((b,i)=>{
+                const sx=pr[i*4],sy=pr[i*4+1],s=pr[i*4+2];
+                const wdt=game?12*g.unit*s:12*g.unit;
+                qbWhite.push(game?sx:g.left+6*g.unit,sy,wdt,Math.max(1,(b.maj?1.8:1.1)*s),UVW,b.maj?[0.85,0.9,1,0.34]:[0.7,0.8,0.95,0.16],0,s);
+               });
+              }
+              /* --- ロングの帯（事前分割ポリゴンを可視範囲だけ） --- */
+              {
+               const posIdx=sf?1:3,pts=[],meta=[];
+               for(const c of chainsByKey){
+                const pos=posOf(c.layer),b=c.band,n=b.length/4;
+                if(!n)continue;
+                /* 可視サンプルの範囲を二分探索 */
+                let lo=0,hi=n;
+                while(lo<hi){const m=(lo+hi)>>1;if(b[m*4+posIdx]<pos+relMin)lo=m+1;else hi=m}
+                let cnt=0;
+                for(let i=lo;i<n&&b[i*4+posIdx]<=pos+relMax;i++){
+                 const rel=b[i*4+posIdx]-pos;
+                 pts.push(b[i*4],rel,b[i*4+2],rel);meta.push(c,i);cnt++;
+                }
+                if(cnt)meta.push(null);
+               }
+               const pr=projectBatch(pts,mode,g);
+               let pi=0,prevChain=null;
+               const colFor=c=>c.cr?[1,0.93,0.55]:[0.55,0.95,0.78];
+               for(let mi=0;mi<meta.length;mi++){
+                const c=meta[mi];
+                if(c===null){prevChain=null;continue}
+                const i=meta[++mi];
+                const Lx=pr[pi*4],Ly=pr[pi*4+1],Ls=pr[pi*4+3];pi++;
+                const Rx=pr[pi*4],Ry=pr[pi*4+1],Rs=pr[pi*4+3];pi++;
+                const col=colFor(c),alpha=(c.deco?gd:sl)*(c.cr?0.9:0.85);
+                const strip=c.deco?Strip:stripBand;
+                if(prevChain===c){ /* 前サンプルの終端を繰り返してストリップを繋ぐ */ }
+                else if(strip.n>0){const o=(strip.n-1)*9,d=strip.data;strip.v(d[o],d[o+1],d[o+2],d[o+3],[d[o+4],d[o+5],d[o+6],d[o+7]],d[o+8]);strip.v(Lx,Ly,0,i*0.22,[...col,0],Ls)}
+                strip.v(Lx,Ly,0,i*0.22,[col[0],col[1],col[2],alpha],Ls);
+                strip.v(Rx,Ry,1,i*0.22,[col[0],col[1],col[2],alpha],Rs);
+                prevChain=c;
+               }
+               stripBand.draw('band');drawCalls++;
+               Strip.draw('white');drawCalls++;
+              }
+              /* --- 同時押し線 --- */
+              {
+               const key=sf?'q':'t',pts=[],vis=[];
+               for(const s of D.simLines){
+                const pos=posOf(s.layer),rel=s[key]-pos;
+                if(rel<relMin||rel>relMax)continue;
+                const x0=mir?12-s.x1:s.x0,x1=mir?12-s.x0:s.x1;
+                pts.push(x0,rel,x1,rel);vis.push(s);
+               }
+               const pr=projectBatch(pts,mode,g);
+               vis.forEach((s,i)=>{
+                const ax=pr[i*8],ay=pr[i*8+1],as=pr[i*8+3],bx=pr[i*8+4],by=pr[i*8+5];
+                qbWhite.push((ax+bx)/2,(ay+by)/2,Math.abs(bx-ax),Math.max(1.4,2.6*as),UVW,[0.65,0.95,1,0.75],0,as);
+               });
+              }
+              /* --- ノーツ本体・矢印・宝石 --- */
+              {
+               const key=sf?'q':'t',groups=sf?groupsQ:groupsT,pts=[],vis=[];
+               for(const[layer,arr]of groups){
+                const pos=posOf(layer);
+                for(const n of rangeIn(arr,key,pos+relMin,pos+relMax)){
+                 const laneC=mir?12-(n.lane+n.w/2):n.lane+n.w/2;
+                 pts.push(laneC,n[key]-pos);vis.push(n);
+                }
+               }
+               const pr=projectBatch(pts,mode,g);
+               vis.forEach((n,i)=>{
+                const sx=pr[i*4],sy=pr[i*4+1],s=pr[i*4+2];
+                const unit=g.unit,wPx=n.w*unit*s;
+                let alpha=n.deco?gd:1;
+                const rel=n[key]-posOf(n.layer);
+                if(rel<0)alpha*=clamp(1+rel*3.5,0,1);
+                if(alpha<=0.01)return;
+                const col=PAL[n.kind]||PAL.tap;
+                if(n.kind==='relay'){
+                 const uv=gemUV(n.cr?'crit':'long');
+                 if(uv)qbNotes.push(sx,sy,0.95*unit*s,0.95*unit*s*(uv[5]||1),uv,[1,1,1,alpha],0,s);
+                 else qbNotes.push(sx,sy,0.5*unit*s,0.5*unit*s,UVW,[1,0.9,0.4,alpha],Math.PI/4,s);
+                 return;
+                }
+                if(n.kind==='trace'){
+                 qbNotes.push(sx,sy,wPx,Math.max(2,0.16*unit*s),UVW,[col[0],col[1],col[2],alpha*0.95],0,s);
+                 const uv=gemUV(n.cr?'crit':n.ang!=null?'flick':'long');
+                 if(uv)qbNotes.push(sx,sy,0.62*unit*s,0.62*unit*s*(uv[5]||1),uv,[1,1,1,alpha],0,s);
+                }else{
+                 const uv=bodyUV(n.kind==='crit'?'crit':n.kind);
+                 const hh=uv?wPx*(uv[5]||0.4)*0.62:wPx*0.24;
+                 if(uv)qbNotes.push(sx,sy,wPx,hh,uv,[1,1,1,alpha],0,s);
+                 else qbNotes.push(sx,sy,wPx,hh,UVW,[col[0],col[1],col[2],alpha],0,s);
+                }
+                if(n.ang!=null){
+                 const uv=arrowUV(n.cr,n.ang!==0,clamp(Math.trunc(n.w)||1,1,6));
+                 if(uv){
+                  const u=unit*s,wc=clamp(Math.trunc(n.w)||1,1,6);
+                  const fh=1.5*u,hh=fh*Math.pow((wc+3)/3,0.75),iw=fh*1.5*Math.pow((wc+0.5)/3,0.75);
+                  const bias=n.ang!==0?(mir?-1:1)*(n.ang>0?1:-1)*u/4:0;
+                  const flip=(n.ang>0)!==(mir&&n.ang!==0);
+                  const auv=flip?[uv[2],uv[1],uv[0],uv[3]]:uv;
+                  qbNotes.push(sx+bias,sy+u/4-hh/2,iw,hh,auv,[1,1,1,alpha],0,s);
+                 }
+                }
+               });
+               drawQB(qbNotes,'notes');drawCalls++;
+              }
+              /* --- レーンの光・判定線 --- */
+              {
+               const now=performance.now()/1000;
+               for(let i=laneGlows.length-1;i>=0;i--){
+                const L=laneGlows[i],age=now-L.t0;
+                if(age>L.life){laneGlows.splice(i,1);continue}
+                const a=L.a*(1-age/L.life)*0.55;
+                const laneC=mir?12-L.x:L.x;
+                if(game){
+                 const pr=projectBatch([laneC,0],mode,g),sx=pr[0],s=pr[3];
+                 qbWhite.push(sx,g.yJ-(H*0.36)/2,L.w*g.unit*s,H*0.36,UVW,[L.r,L.g,L.b,a],0,s);
+                }else{
+                 qbWhite.push(g.left+laneC*g.unit,g.yJ-(H*0.3)/2,L.w*g.unit,H*0.3,UVW,[L.r,L.g,L.b,a],0,1);
+                }
+               }
+               const jw=game?12*g.unit:12*g.unit;
+               qbWhite.push(game?W/2:g.left+6*g.unit,g.yJ,jw,3,UVW,[0.91,1,0.98,0.92],0,1);
+               qbWhite.push(game?W/2:g.left+6*g.unit,g.yJ,jw*1.02,11,UVW,[0.56,0.94,0.89,0.14],0,1);
+               drawQB(qbWhite,'white');drawCalls++;
+              }
+              /* --- パーティクル --- */
+              {
+               const pk=Particles.pack(mode,g);
+               for(let i=0;i<pk.length;i+=10){
+                const f=pk[i+5],u0=(f%8)/8,v0=Math.floor(f/8)/8;
+                qbFx.push(pk[i],pk[i+1],pk[i+2],pk[i+2],[u0,v0,u0+1/8,v0+1/8],[pk[i+6],pk[i+7],pk[i+8],pk[i+4]],pk[i+3],pk[i+9]);
+               }
+               drawQB(qbFx,'effect',true);drawCalls++;
+              }
+              return drawCalls;
+             };
+             /* ================= メインループ =================
+                時刻の決定は Engine と音声クロックだけが行い、描画は
+                「現在の Engine.time で DrawData から可視分を選んで描く」だけ。 */
+             let raf=0,lastPerf=0,drag=false,needHud=true;
+             const fmt=t=>{t=Math.max(0,t);const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)};
+             const loop=now=>{
+              raf=0;
+              const dt=Math.min(0.05,lastPerf?(now-lastPerf)/1000:0);lastPerf=now;
+              if(Engine.playing){
+               if(ab&&src){Engine.time=aT()}
+               else Engine.time+=dt*rate;
+               if(Engine.time>=Engine.duration){Engine.time=Engine.duration;setPlay(false)}
+               Engine._fireHits();
+              }
+              Particles.update(Engine.playing?dt:Math.min(dt,0.016));
+              draw();
+              /* HUD・シークは Engine.getState() への問い合わせ結果だけを使う */
+              const st=Engine.getState();
+              $('hB').textContent='小節 '+(Math.floor(barAt(st.time))+1);
+              $('hBpm').textContent='BPM '+bpmAt(st.time);
+              $('hHs').textContent='速度 ×'+speedAt(D.mhs,st.time).toFixed(2);
+              $('hC').textContent='COMBO '+st.combo;
+              if(!drag)$('seek').value=Math.round((st.time+LEAD)/(Engine.duration+LEAD)*1000);
+              $('tcur').textContent=fmt(st.time);
+              if(Engine.playing||needHud){raf=requestAnimationFrame(loop);needHud=false}
+             };
+             const inv=()=>{if(!raf)raf=requestAnimationFrame(loop)};
+             const setPlay=p=>{
+              if(p&&Engine.time>=Engine.duration)Engine.seek(-LEAD);
+              Engine.setPlaying(p);
+              $('bPlay').innerHTML=p?'<b aria-hidden="true">⏸</b>一時停止':'<b aria-hidden="true">▶</b>再生';
+              $('bPlay').setAttribute('aria-pressed',p);
+              if(p){const c=getCtx();if(c.state==='suspended')c.resume();measureLatency();aStart();lastPerf=0}
+              else aStop();
+              inv();
+             };
+             const seekTo=t=>{Engine.seek(t);if(Engine.playing)aStart();inv()};
+             const prevBar=()=>{const b=barAt(Engine.time);const bt=D.barTimes[Math.max(0,Math.floor(b-0.001))];seekTo((bt==null?-LEAD:bt)+0.001)};
+             const nextBar=()=>{const b=barAt(Engine.time);const bt=D.barTimes[Math.min(D.barTimes.length-1,Math.floor(b)+1)];seekTo(bt==null?Engine.duration:bt)};
+             /* ================= UI 配線 ================= */
+             const setLbl=(id,v)=>{const e=$(id);if(e)e.textContent=v};
+             const syncUI=()=>{
+              $('rate').value=rate;setLbl('ratev',rate.toFixed(2)+'×');
+              $('vol').value=Math.round(vl*100);setLbl('volv',Math.round(vl*100)+'%');
+              $('ao').value=ao;setLbl('aov',(ao>=0?'+':'')+ao.toFixed(2)+'秒');
+              $('aoms').value=aoMs;setLbl('aomsv',(aoMs>=0?'+':'')+Math.round(aoMs)+'ms');
+              $('spd').value=spd;setLbl('spdv',spd.toFixed(2));
+              $('rk').value=rk;$('ap').value=ap;setLbl('apv',ap+'%');
+              $('mir').checked=mir;$('sf').checked=sf;
+              $('slO').value=Math.round(sl*100);setLbl('slv',Math.round(sl*100)+'%');
+              $('gdO').value=Math.round(gd*100);setLbl('gdv',Math.round(gd*100)+'%');
+              $('skin').value=skin;$('fxp').value=String(fxPat);
+              $('bgb').value=bgBright;setLbl('bgbv',bgBright+'%');
+              $('cov').value=cover;setLbl('covv',cover+'%');
+              $('tend').textContent=fmt(Engine.duration);
+              $('vw').setAttribute('aria-pressed',view==='game');
+              measureLatency();
+             };
+             $('bPlay').onclick=()=>setPlay(!Engine.playing);
+             $('bStart').onclick=()=>seekTo(-LEAD);
+             $('bBack').onclick=()=>seekTo(Engine.time-5);
+             $('bFwd').onclick=()=>seekTo(Engine.time+5);
+             $('seek').addEventListener('pointerdown',()=>drag=true);
+             $('seek').addEventListener('pointerup',()=>drag=false);
+             $('seek').addEventListener('input',e=>{Engine.seek(+e.target.value/1000*(Engine.duration+LEAD)-LEAD);if(Engine.playing)aStart();inv()});
+             $('rate').oninput=e=>{rate=+e.target.value;Engine.rate=rate;setLbl('ratev',rate.toFixed(2)+'×');save();if(ab)loadAudio();inv()};
+             $('vocal').onchange=e=>{vi=+e.target.value;loadAudio()};
+             $('vol').oninput=e=>{vl=+e.target.value/100;setLbl('volv',e.target.value+'%');if(gn)gn.gain.value=vl;save()};
+             $('ao').oninput=e=>{ao=+e.target.value;setLbl('aov',(ao>=0?'+':'')+ao.toFixed(2)+'秒');save();if(Engine.playing)aStart()};
+             $('aoms').oninput=e=>{aoMs=+e.target.value;setLbl('aomsv',(aoMs>=0?'+':'')+Math.round(aoMs)+'ms');measureLatency();save();if(Engine.playing)aStart()};
+             $('spd').oninput=e=>{spd=+e.target.value;setLbl('spdv',spd.toFixed(2));save();inv()};
+             $('rk').onchange=e=>{rk=e.target.value;save();inv()};
+             $('ap').oninput=e=>{ap=+e.target.value;setLbl('apv',ap+'%');save();inv()};
+             $('mir').onchange=e=>{mir=e.target.checked;save();inv()};
+             $('sf').onchange=e=>{sf=e.target.checked;save();inv()};
+             $('slO').oninput=e=>{sl=+e.target.value/100;setLbl('slv',e.target.value+'%');save();inv()};
+             $('gdO').oninput=e=>{gd=+e.target.value/100;setLbl('gdv',e.target.value+'%');save();inv()};
+             $('skin').onchange=e=>{skin=e.target.value;save();loadSkin();inv()};
+             $('fxp').onchange=e=>{fxPat=+e.target.value;save();for(const k in FXDefs)delete FXDefs[k];loadFX(fxPat)};
+             $('bgb').oninput=e=>{bgBright=+e.target.value;setLbl('bgbv',bgBright+'%');save();inv()};
+             $('cov').oninput=e=>{cover=+e.target.value;setLbl('covv',cover+'%');save();inv()};
+             $('calib').onclick=startCalib;
+             $('tap').onclick=calibTap;
+             $('vw').onclick=()=>{view=view==='game'?'flat':'game';save();syncUI();inv()};
+             $('tg').onclick=()=>{const p=$('panel'),open=p.hidden;p.hidden=!open;$('tg').setAttribute('aria-expanded',open)};
+             addEventListener('keydown',e=>{
+              if(e.target.tagName==='SELECT'||e.target.tagName==='INPUT'&&e.target.type==='text')return;
+              if(e.code==='Space'){e.preventDefault();setPlay(!Engine.playing)}
+              else if(e.key==='ArrowLeft')seekTo(Engine.time-(e.shiftKey?5:1));
+              else if(e.key==='ArrowRight')seekTo(Engine.time+(e.shiftKey?5:1));
+              else if(e.key==='ArrowUp'){e.preventDefault();nextBar()}
+              else if(e.key==='ArrowDown'){e.preventDefault();prevBar()}
+              else if(e.key==='Home')seekTo(-LEAD);
+              else if(e.key==='End')seekTo(Engine.duration);
+              else if(e.key==='v'||e.key==='V')$('vw').click();
+              else if(e.key==='t'||e.key==='T')calibTap();
+             });
+             cv.addEventListener('pointerdown',()=>{if(calibRun)calibTap()});
+             if(window.ResizeObserver)new ResizeObserver(()=>inv()).observe($('wrap'));
+             const HM='非表示になったため一時停止しました';
+             document.addEventListener('visibilitychange',()=>{
+              if(document.hidden){if(raf){cancelAnimationFrame(raf);raf=0}if(Engine.playing){setPlay(false);$('astat').textContent=HM}try{if(ctx&&ctx.state==='running')ctx.suspend()}catch(e){}}
+              else inv();
+             });
+             /* ================= 初期化 ================= */
+             Engine._resetHits();
+             syncUI();
+             initAudio();
+             inv();
+             window.__pl={setPlay,seek:seekTo,get t(){return Engine.time},get playing(){return Engine.playing},
+              getState:()=>Engine.getState(),draw:()=>draw(),get drawCalls(){return drawCalls}};
             }
             const openPlayer=w=>{
              const S=parseSUS(sus),D=buildPlay(S);
              if(!D.nodes.length&&!D.chains.length)throw new Error('再生できるノーツがありません');
              D.pf=playPrefs();
-             const{sprites,...data}=D,si=songInfo,tabTitle=esc(songLabel||S.meta.TITLE||'譜面');
-             data.mid=si&&si.id!=null?si.id:null;data.jk=si&&si.jk?String(si.jk):null;data.fk={V:FK_V,D:FK_D,C:FK_C,G:FK_G,T:FK_T,O:FK_O}; /* ゲーム画面のフリック矢印も、譜面表示と同じ実機の矢印データで描く */data.fs=si&&+si.fs>0?+si.fs:0;const json=JSON.stringify(data).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+             const si=songInfo,tabTitle=esc(songLabel||S.meta.TITLE||'譜面');
+             D.mid=si&&si.id!=null?si.id:null;D.jk=si&&si.jk?String(si.jk):null;D.fs=si&&+si.fs>0?+si.fs:0;
+             D.assetBase=new URL('.',location.href).href; /* iframe(document.write) からでも素材を絶対URLで引けるように */
+             const json=JSON.stringify(D).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
              const songHTML=`<div class="song">${si?`<img src="${esc(((IMG.done.get(si.jk)||{}).src)||si.jk)}" alt="" referrerpolicy="no-referrer">`:''}<div><b>${esc(si?si.title:(S.meta.TITLE||'譜面'))}</b>${si?`<span class="lv" style="background:${DCOL[si.diff]||'#74829f'}">${esc(si.diff.toUpperCase())}${si.level!=null?` Lv${esc(si.level)}`:''}</span>`:''}</div></div>`;
              w.document.write(`<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>▶ ${tabTitle}</title>
              <style>
@@ -1758,7 +2276,8 @@
               .cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;line-height:1.35;color:#c4d2e4}.cap b{color:#8ef0e2;font-variant-numeric:tabular-nums;white-space:nowrap}
               .control input[type=range]{display:block;width:100%;height:30px;accent-color:#58d7c4}
               .chk{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid #344b66;border-radius:6px;background:#0f1a2b;font-size:13px;color:#e5edf7;cursor:pointer;user-select:none}.chk:has(input:checked){border-color:#58d7c4}.chk input{width:16px;height:16px;margin:0;accent-color:#58d7c4}
-              #wrap{flex:1;min-height:0;position:relative;background:#111827}#stage{display:block;width:100%;height:100%}#gbg,#gview{display:none;position:absolute;left:0;top:0;width:100%;height:100%}
+              .rowb{display:flex;gap:8px}.rowb button{flex:1}
+              #wrap{flex:1;min-height:0;position:relative;background:#111827}#gl{display:block;width:100%;height:100%}
               .hud{position:absolute;left:10px;top:8px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}.hud span{background:#0b1220cc;border:1px solid #344b66;border-radius:8px;padding:2px 10px;font-weight:700;font-variant-numeric:tabular-nums}
               footer{flex:none;display:flex;flex-direction:column;gap:8px;padding:8px 12px 10px;background:#18263a;border-top:1px solid #344b66}
               .tl{display:flex;align-items:center;gap:10px}.tl input{flex:1;min-width:0;accent-color:#58d7c4}.tl span{min-width:4.4em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
@@ -1771,27 +2290,33 @@
               <div class="control wide"><label class="cap" for="vocal">ボーカル</label><select id="vocal" disabled><option>読み込み中…</option></select></div>
               <div class="control"><label class="cap" for="vol">音量 <b id="volv"></b></label><input id="vol" type="range" min="0" max="100"></div>
               <div class="control"><label class="cap" for="ao">音源のタイミング補正（＋で音が早く／−で遅く） <b id="aov"></b></label><input id="ao" type="range" min="-3" max="3" step="0.01"></div>
+              <div class="control"><label class="cap" for="aoms">手動オフセット（ms） <b id="aomsv"></b></label><input id="aoms" type="range" min="-500" max="500" step="1"></div>
+              <div class="control"><span class="cap">出力遅延の自動補正 <b id="latv"></b></span><div class="rowb"><button id="calib" class="g" type="button">キャリブレーション開始</button><button id="tap" type="button">タップ</button></div><div class="hint" id="calibst">Bluetooth等で音が遅れる場合は、クリックが聞こえた瞬間に「タップ」（Tキー／画面タップでも可）を押して計測できます。</div></div>
               <div class="control"><label class="cap" for="spd">ノーツ速度 <b id="spdv"></b></label><input id="spd" type="range" min="1" max="12" step=".01"></div>
               <div class="control"><label class="cap" for="rk">再生速度を変えたとき</label><select id="rk"><option value="all">全体が変化（ノーツ速度も変わる）</option><option value="keep">ノーツ速度はそのまま</option></select></div>
               <div class="control wide"><label class="cap" for="ap">ノーツ表示開始位置（レーン奥から） <b id="apv"></b></label><input id="ap" type="range" min="0" max="100" step="1"></div>
               <div class="control"><span class="cap">ミラー</span><label class="chk"><input id="mir" type="checkbox"> 左右反転</label></div>
-              <div class="control"><span class="cap">ソフラン（速度変化）</span><label class="chk"><input id="sf" type="checkbox"> ソフランなし</label></div>
+              <div class="control"><span class="cap">ソフラン（速度変化）</span><label class="chk"><input id="sf" type="checkbox"> ソフランを有効にする</label></div>
               <div class="control"><label class="cap" for="slO">スライドノーツ透明度 <b id="slv"></b></label><input id="slO" type="range" min="0" max="100"></div>
               <div class="control"><label class="cap" for="gdO">ガイドノーツ透明度 <b id="gdv"></b></label><input id="gdO" type="range" min="0" max="100"></div>
+              <div class="control"><label class="cap" for="skin">ノーツスキン</label><select id="skin"><option value="notes_01">notes_01</option><option value="notes_02">notes_02</option></select></div>
+              <div class="control"><label class="cap" for="fxp">エフェクトパターン</label><select id="fxp"><option value="0">パターン 0</option><option value="1">パターン 1</option></select></div>
+              <div class="control"><label class="cap" for="bgb">背景の明るさ <b id="bgbv"></b></label><input id="bgb" type="range" min="0" max="150" step="1"></div>
+              <div class="control"><label class="cap" for="cov">ステージカバーの不透明度 <b id="covv"></b></label><input id="cov" type="range" min="0" max="100" step="1"></div>
              </section>
-             <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas>
-              <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
+             <main id="wrap"><canvas id="gl" role="img" aria-label="ノーツが流れる譜面再生画面（WebGL2描画）"></canvas>
+              <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span><span id="hC">COMBO 0</span></div></main>
              <footer>
-              <div class="tl"><span id="tcur">0:00.0</span><input id="seek" type="range" aria-label="再生位置"><span id="tend"></span></div>
+              <div class="tl"><span id="tcur">0:00.0</span><input id="seek" type="range" aria-label="再生位置" min="0" max="1000" value="0"><span id="tend"></span></div>
               <div class="ctl">
                <button id="bStart" class="g"><b aria-hidden="true">|◀</b>先頭へ</button><button id="bBack" class="g"><b aria-hidden="true">◀◀</b>5秒戻る</button>
                <button id="bPlay" aria-pressed="false"><b aria-hidden="true">▶</b>再生</button>
                <button id="bFwd" class="g"><b aria-hidden="true">▶▶</b>5秒進む</button>
                </div>
               <div id="astat" class="hint" role="status"></div>
-              <div class="hint">Space：再生/一時停止　←→：1秒（Shift で5秒）　↑↓：小節移動　Home：先頭　End：末尾　V：表示切り替え</div>
+              <div class="hint">Space：再生/一時停止　←→：1秒（Shift で5秒）　↑↓：小節移動　Home：先頭　End：末尾　V：表示切り替え　T：キャリブレーションのタップ</div>
              </footer>
-             <script>const cubicPoint=${cubicPoint},cubicXAtY=${cubicXAtY};(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5]},1);<\/script></html>`);
+             <script>(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],aoms:[1,10],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5],bgb:[1,10],cov:[1,10]},1);<\/script></html>`);
              w.document.close();
             };
             /* ---------- 拡大表示・譜面再生：別タブを開かず、同じタブの全画面レイヤー（iframe）で表示する ----------
@@ -1949,12 +2474,15 @@
             function syncPlay(){
               const p=playPrefs(),pc=v=>Math.round(v*100)+'%',set=(id,v,t)=>{$('#'+id).value=v;if(t!=null)$('#'+id+'V').textContent=t};
               set('plRate',p.rate,p.rate.toFixed(2)+'×');set('plVol',Math.round(p.vol*100),pc(p.vol));set('plAo',p.ao,(p.ao>=0?'+':'')+p.ao.toFixed(2)+'秒');
+              set('plAoMs',p.aoMs,(p.aoMs>=0?'+':'')+p.aoMs+'ms');set('plBgB',p.bgBright,p.bgBright+'%');set('plCover',p.cover,p.cover+'%');
               set('plSpd',p.spd,p.spd.toFixed(2));set('plAp',p.ap,p.ap+'%');
-              $('#plRk').value=p.rk;$('#plDv').value=p.dv;$('#plSf').checked=!p.sf;fillRanges();
+              $('#plRk').value=p.rk;$('#plDv').value=p.dv;$('#plSf').checked=!p.sf;$('#plSkin').value=p.skin;$('#plFx').value=String(p.fxPat);fillRanges();
             }
             const onP=(id,fn,ev='oninput')=>{$('#'+id)[ev]=e=>{setP(fn(e.target));syncPlay()}};
             onP('plRate',t=>({rate:Math.round(+t.value*100)/100}));onP('plVol',t=>({vol:t.value/100}));onP('plAo',t=>({aoff:+t.value}));
             onP('plSpd',t=>({spd:+t.value}));onP('plAp',t=>({apb:+t.value}));
+            onP('plAoMs',t=>({aoMs:+t.value}));onP('plBgB',t=>({bgBright:+t.value}));onP('plCover',t=>({cover:+t.value}));
+            onP('plSkin',t=>({skin:t.value}),'onchange');onP('plFx',t=>({fxPat:+t.value}),'onchange');
             stepperInit({zm:[1,10],slOpacity:[5],gdOpacity:[5],plRate:[.01,.1],plVol:[1,10],plAo:[.01,.1],plSpd:[.01,.1,1],plAp:[1,10]});
             onP('plRk',t=>({rk:t.value}),'onchange');onP('plDv',t=>({dv:t.value}),'onchange');onP('plSf',t=>({sf:!t.checked}),'onchange');
             $('#plRst').onclick=()=>{savePrefs({player:{}});syncPlay()}; /* デフォルトボーカルもセカイバージョンに戻る */
