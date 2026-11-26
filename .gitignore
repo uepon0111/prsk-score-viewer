@@ -1,0 +1,7 @@
+# Rust build output (rebuild with wasm/build.sh)
+/wasm/proseka-core/target/
+# macOS / Windows
+.DS_Store
+Thumbs.db
+# Node (only used for tests)
+node_modules/
