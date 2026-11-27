@@ -130,16 +130,17 @@
     switch (mc.m) {
       case 2: return [lerp(mc.lo[0], mc.hi[0], lr), lerp(mc.lo[1], mc.hi[1], lr), lerp(mc.lo[2], mc.hi[2], lr), lerp(mc.lo[3], mc.hi[3], lr)];
       case 4: {
-        // Random (Unity MinMaxGradient "Random Color"): the gradient is a
-        // continuous ramp sampled at the particle's random ratio — NOT a
-        // discrete snap to a keyframe. Snapping (the C++ fan port's shortcut)
-        // makes ~1/3 of grains take an endpoint key at full saturation
-        // (pure red on critical profiles, pure cyan on normal ones), which
-        // breaks the normal-vs-critical color distinction the game shows:
-        // critical grains read as a white→gold continuum, normal grains as
-        // their type color continuum.
+        // Random: the native MinMaxColor::evaluate (sekai-mmw-preview-web
+        // mmw_port MinMax.cpp, which WebSekai runs as WASM) samples the
+        // gradient DISCRETELY: index = clamp(floor(keyCount * lerpRatio)),
+        // so each particle takes exactly one keyframe color for its whole
+        // life (with 4 keys, ~25% of grains per key). An earlier build
+        // evaluated the gradient continuously as a deliberate deviation;
+        // reverted 2026-11-27 at the user's request to match the reference
+        // site exactly.
         if (!mc.a || !mc.a.length) return WHITE;
-        return colorAt(mc.a, lr);
+        const k = mc.a[Math.min(mc.a.length - 1, Math.max(0, Math.floor(mc.a.length * lr)))];
+        return [k[1], k[2], k[3], k[4]];
       }
       case 1: return colorAt(mc.a, time);
       case 3: {
