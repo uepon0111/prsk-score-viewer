@@ -1,0 +1,91 @@
+/* ui.css — 共通デザイン（設定・拡大表示・譜面再生・読み込み進捗）
+   方針: 譜面を見る面(#chart / #pv / #wrap / #chartBox)は暗く、それ以外はすべて明るく。
+   index.html・拡大表示・譜面再生の3画面で同じファイルを読み込みます。 */
+:root{color-scheme:light;--ink:#1f2a40;--mut:#63738f;--acc:#0d8174;--acs:#e1f5f1;--ln:#d9e4f0;--bg2:#f3f7fc;--stage:#111827;--sh:0 1px 2px #1f2a4014,0 8px 24px #4a6fa31f;--arw:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2363738f' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")}
+
+/* ---- 文字の折り返し：語のまとまりで改行し、幅に応じて均等に ---- */
+html :is(.fld,.control,.tag,.pgt,.hint,#ldOv,#ldOvP){word-break:keep-all;overflow-wrap:anywhere;text-wrap:pretty}
+@supports(word-break:auto-phrase){html :is(.fld,.control,.tag,.pgt,.hint,#ldOv,#ldOvP){word-break:auto-phrase}}
+
+/* ---- 共通部品：ボタン・セレクト・スイッチ・スライダー ---- */
+html button{min-height:40px;border-radius:10px}
+html button.g{background:#fff;border:1px solid var(--ln);color:var(--ink)}
+html button.g:hover{background:var(--acs);border-color:var(--acc)}
+html button.kc-danger{background:#fff;border:1px solid #f1b9c6;color:#b0213f}
+html :is(.fld select,.control select){appearance:none;-webkit-appearance:none;width:100%;height:42px;padding:0 36px 0 12px;border:1px solid var(--ln);border-radius:10px;background:#fff var(--arw) no-repeat right 12px center/12px;color:var(--ink);font:inherit;text-overflow:ellipsis}
+html :is(.fld input[type=checkbox],.chk input){appearance:none;-webkit-appearance:none;flex:none;position:relative;width:44px;height:26px;margin:0;border:0;border-radius:999px;background:#c3d0e4;cursor:pointer;transition:background .15s}
+html :is(.fld input[type=checkbox],.chk input)::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .15s}
+html :is(.fld input[type=checkbox],.chk input):checked{background:var(--acc)}
+html :is(.fld input[type=checkbox],.chk input):checked::after{transform:translateX(18px)}
+html :is(.control input[type=range]){accent-color:var(--acc);height:32px}
+html :focus-visible{outline:3px solid #7ccfc3;outline-offset:2px}
+
+/* ---- 設定画面（index.html） ---- */
+html #p-settings .card{padding:20px;border-radius:18px;box-shadow:var(--sh)}
+html #p-settings h2{display:flex;align-items:center;gap:10px;margin:0 0 16px;font-size:17px;color:var(--ink)}
+html #p-settings h2::before{content:"";width:5px;height:1.1em;border-radius:3px;background:var(--acc)}
+html .psg{grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:14px}
+html .psg>div{padding:16px 16px 2px;background:var(--bg2);border:1px solid var(--ln);border-radius:14px}
+html #p-settings h3{margin:0 0 14px;padding:0;border:0;font-size:13px;font-weight:800;color:var(--acc)}
+html .fld{margin-bottom:16px}
+html .fld label{flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--ink)}
+html .fld label>span{flex:1 1 11em;min-width:0}
+html .fld label b{margin-left:auto;background:#fff;border:1px solid var(--ln);color:var(--acc)}
+html .fld .mut{margin-top:6px;line-height:1.6}
+html .tag{display:inline-block;margin:2px 0 0 8px;background:var(--acs);color:var(--acc)}
+html .fld.sw{padding:12px 14px;background:#fff;border:1px solid var(--ln);border-radius:12px}
+html .fld.sw label>span{flex:1 1 0}
+html #pv{border:1px solid #243049;border-radius:14px}
+html #p-settings .card>button.g{margin-top:2px}
+
+/* ---- 拡大表示・譜面再生（iframe）：操作部は明るく、譜面部は暗く ---- */
+html body:has(>#panel){background:var(--bg2);color:var(--ink)}
+html body:has(>#panel)>:is(header,footer){position:relative;z-index:2;background:#fff;box-shadow:var(--sh)}
+html body:has(>#panel)>header{border-bottom:1px solid var(--ln)}
+html body:has(>#panel)>footer{border-top:1px solid var(--ln)}
+html body:has(>#panel) .song b{color:var(--ink)}
+html body:has(>#panel) .song img{background:var(--ln);box-shadow:var(--sh)}
+html body:has(>#panel) :is(.tools,.ctl,.btns) button{min-height:40px;border-radius:10px;background:var(--acc);color:#fff}
+html body:has(>#panel) :is(.tools,.ctl,.btns) button.g{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+html body:has(>#panel) #tg[aria-expanded=true]{background:var(--acs);color:var(--acc);border-color:var(--acc)}
+html body:has(>#panel) #panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));justify-content:stretch;gap:10px;padding:14px 16px 16px;background:var(--bg2);border-bottom:1px solid var(--ln);max-height:56dvh}
+html body:has(>#panel) #panel[hidden]{display:none}
+html body:has(>#panel) .control{gap:8px;padding:12px 14px;background:#fff;border:1px solid var(--ln);border-radius:12px}
+html body:has(>#panel) .cap{flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:13px;font-weight:700;color:var(--ink)}
+html body:has(>#panel) :is(.cap b,.cap .value){margin-left:auto;padding:1px 10px;border-radius:999px;background:var(--acs);color:var(--acc);font-weight:800}
+html body:has(>#panel) .chk{height:44px;flex-direction:row-reverse;justify-content:space-between;padding:0 12px;border:1px solid var(--ln);border-radius:10px;background:#fff;color:var(--ink)}
+html body:has(>#panel) .chk:has(input:checked){border-color:var(--acc)}
+html body:has(>#panel) .hint{font-size:12px;color:var(--mut)}
+html body:has(>#panel) .tl span,html body:has(>#panel) .ctl label{color:var(--ink)}
+html body:has(>#panel) .tl input{accent-color:var(--acc)}
+html body:has(>#panel) #wrap,html body:has(>#panel) #chartBox{background:var(--stage)}
+
+/* ---- 読み込み進捗：全画面ローダー（明るい面にカード） ---- */
+html :is(#ldOv,#ldOvP){background:linear-gradient(135deg,#eaf7ff,#fff3fa);color:var(--ink)}
+html :is(#ldOv,#ldOvP) .ldCard{width:min(400px,90vw);padding:26px 24px 22px;text-align:left;background:#fff;border:1px solid var(--ln);border-radius:22px;box-shadow:0 20px 60px #4a6fa326}
+html #ldOv .ldTitle{margin:0 0 4px;font-size:18px;color:var(--ink)}
+html :is(#ldOv,#ldOvP) .ldMsg{margin:0 0 18px;font-size:13px;color:var(--mut)}
+html #ldOvP .ldMsg{font-size:15px;font-weight:700;color:var(--ink)}
+html :is(#ldOv,#ldOvP) .ldBarWrap{height:10px;background:var(--ln)}
+html :is(#ldOv,#ldOvP) .ldBarWrap i{position:relative;overflow:hidden;background:linear-gradient(90deg,#1fb5a3,#7ab8ff)}
+html #ldOv .ldBarWrap i{transition:width .5s cubic-bezier(.22,1,.36,1)}
+html #ldOv .ldBarWrap i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffffa0 50%,transparent 70%);transform:translateX(-100%);animation:uiSh 1.5s ease-in-out infinite}
+html :is(#ldOv,#ldOvP) .ldSub{gap:12px;margin-top:10px;font-size:12px;color:var(--mut)}
+html #ldPct{font-weight:800;color:var(--acc);font-variant-numeric:tabular-nums}
+@keyframes uiSh{to{transform:translateX(100%)}}
+
+/* ---- 読み込み進捗：譜面エリア内のカード（暗い譜面面の上に明るいカード） ---- */
+html .msg:has(>.pgs){background:none}
+html .pgs{width:min(100%,400px);padding:24px 24px 20px;color:var(--ink);background:#fff;border:1px solid var(--ln);border-radius:20px;box-shadow:0 20px 50px #0008}
+html .pgp{color:var(--ink)}html .pgp small{color:var(--acc)}
+html .pgn{background:var(--acs);color:var(--acc)}
+html .pgb{background:var(--ln)}
+html .pgs li{color:var(--mut)}html .pgs li::before{background:var(--ln)}
+html .pgs li span{background:#fff;border-color:#b9c8dc}
+html .pgs li.ok{color:var(--acc)}
+html .pgs li.ok::before,html .pgs li.on::before{background:var(--acc)}
+html .pgs li.ok span{background:var(--acc);border-color:var(--acc)}
+html .pgs li.ok span::after{border-color:#fff}
+html .pgs li.on{color:var(--ink)}html .pgs li.on span{border-color:var(--acc)}
+html .pgt{color:var(--mut)}
+@media(prefers-reduced-motion:reduce){html #ldOv .ldBarWrap i::after{animation:none}html :is(.fld input[type=checkbox],.chk input),html :is(.fld input[type=checkbox],.chk input)::after{transition:none}}
