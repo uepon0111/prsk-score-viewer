@@ -43,6 +43,29 @@
     ]);
     renderer.setSkinTextures(notes, long, touch);
   }
+  // V3 overlay background assets (the original site's generator). Loaded
+  // independently; refreshBackground prefers the V3 composition when both
+  // the assets and a jacket are available.
+  const V3_BASES = [
+    'assets/overlay/bggen/v3/',
+    'https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/assets/overlay/bggen/v3/',
+    'https://raw.githubusercontent.com/watagashi-uni/sekai-mmw-preview-web/main/public/assets/mmw/overlay/bggen/v3/',
+  ];
+  async function loadV3Asset(name) {
+    for (const b of V3_BASES) {
+      try { return await loadImage(b + name, true); } catch (e) { /* try next base */ }
+    }
+    throw new Error('bggen ' + name);
+  }
+  let v3Assets = null, v3Canvas = null, v3Jacket = null;
+  async function initV3Assets() {
+    try {
+      const [base, bottom, centerCover, centerMask, sideCover, sideMask, windows] = await Promise.all(
+        ['base.png', 'bottom.png', 'center_cover.png', 'center_mask.png', 'side_cover.png', 'side_mask.png', 'windows.png'].map(loadV3Asset));
+      v3Assets = { base, bottom, centerCover, centerMask, sideCover, sideMask, windows };
+      refreshBackground();
+    } catch (e) { v3Assets = null; }
+  }
   async function initAssets() {
     const [stage, effect, defBg] = await Promise.all([
       loadImage('assets/stage/stage.png'), loadImage('assets/effects/effect.png'),
@@ -53,8 +76,18 @@
     state.defaultBg = defBg;
     await loadSkin('01');
     refreshBackground();
+    initV3Assets();
   }
   function refreshBackground() {
+    if (v3Assets && state.jacket) {
+      if (v3Jacket !== state.jacket || !v3Canvas) {
+        try {
+          v3Canvas = window.SekaiBg.composeV3Background(state.jacket, v3Assets);
+          v3Jacket = state.jacket;
+        } catch (e) { v3Canvas = null; }
+      }
+      if (v3Canvas) { renderer.setBackgroundTexture(v3Canvas); return; }
+    }
     const composed = window.SekaiBg.composeBackground(state.defaultBg, state.jacket);
     renderer.setBackgroundTexture(composed);
   }
@@ -72,22 +105,41 @@
 
   // ---------- score loading --------------------------------------------------
   function buildScore(susText) {
-    const score = window.SekaiSUS.parseSUS(susText);
+    // Transactional: derive everything into locals first and swap the live
+    // state in one step only when the chart validates as complete. A partial
+    // or corrupt chart is rejected and nothing of it is displayed.
+    let score, drawData, hitEvents, hudEvents, duration, scaledTable;
+    try {
+      if (typeof susText !== 'string' || !/\n$/.test(susText)) throw new Error('incomplete chart: truncated');
+      score = window.SekaiSUS.parseSUS(susText);
+      const invalid = window.SekaiSUS.validateScore(score);
+      if (invalid) throw new Error('incomplete chart: ' + invalid);
+      drawData = window.SekaiDraw.calculateDrawData(score, cfg.noteSpeed);
+      hitEvents = window.SekaiDraw.calculateHitEvents(score);
+      hudEvents = window.SekaiDraw.calculateHudEvents(score);
+      const endSec = window.SekaiSUS.accumulateDuration(score.maxTick, score.tempos);
+      duration = endSec + 2;
+      scaledTable = window.SekaiDraw.buildScaledTimeTable(score, Math.max(duration, (audio.bgm.duration || 0)));
+    } catch (e) {
+      state.score = null;
+      status('譜面の読み込みに失敗しました（データが不完全です）');
+      return;
+    }
     state.score = score;
-    state.drawData = window.SekaiDraw.calculateDrawData(score, cfg.noteSpeed);
-    state.hitEvents = window.SekaiDraw.calculateHitEvents(score);
-    state.hudEvents = window.SekaiDraw.calculateHudEvents(score);
-    const endSec = window.SekaiSUS.accumulateDuration(score.maxTick, score.tempos);
-    state.duration = endSec + 2;
-    state.scaledTable = window.SekaiDraw.buildScaledTimeTable(score, Math.max(state.duration, (audio.bgm.duration || 0)));
-    const totalWeight = state.hitEvents.reduce((s, e) => s + (e.auto ? 0.1 : 1), 0);
+    state.drawData = drawData;
+    state.hitEvents = hitEvents;
+    state.hudEvents = hudEvents;
+    state.duration = duration;
+    state.scaledTable = scaledTable;
+    const totalWeight = state.hitEvents.reduce((s, e) => s + (e.combo ? (e.auto ? 0.1 : 1) : 0), 0);
     hud.reset(totalWeight);
     resetEventPointers(0);
-    fx.reset();
+    fx.setScore(score);
     audio.fillerSec = (state.fillerSec || 0) - (score.musicOffset || 0);
     status(`譜面を読み込みました（ノーツ ${score.notes.size} / イベント ${state.hitEvents.length}）`);
   }
   function resetEventPointers(chartNow) {
+    if (window.SekaiAudio) audio.stopAllLoops();
     const find = (arr, t) => {
       let lo = 0, hi = arr.length;
       while (lo < hi) { const mid = (lo + hi) >> 1; if (arr[mid].time < t) lo = mid + 1; else hi = mid; }
@@ -99,7 +151,7 @@
   }
   // Rebuild HUD combo/score after a seek by replaying events silently.
   function replayHud(chartNow) {
-    const totalWeight = state.hitEvents.reduce((s, e) => s + (e.auto ? 0.1 : 1), 0);
+    const totalWeight = state.hitEvents.reduce((s, e) => s + (e.combo ? (e.auto ? 0.1 : 1) : 0), 0);
     hud.reset(totalWeight);
     const merged = [];
     for (const e of state.hudEvents) if (e.time <= chartNow) merged.push({ t: e.time, hudEv: e });
@@ -215,10 +267,9 @@
     if (!state.score) return;
     const now = chartNow();
     const scaled = state.scaledTable ? state.scaledTable.at(now) : now;
-    // hit events -> fx + HUD
+    // hit events -> HUD (effects are note-driven, updated below)
     while (state.hitIdx < state.hitEvents.length && state.hitEvents[state.hitIdx].time <= now) {
       const ev = state.hitEvents[state.hitIdx++];
-      if (state.effects && state.playing) fx.trigger(ev, now, cfg.mirror);
       hud.onHit(ev, now);
     }
     while (state.hudEvIdx < state.hudEvents.length && state.hudEvents[state.hudEvIdx].time <= now) {
@@ -232,6 +283,7 @@
       state.seIdx = audio.schedule(state.hitEvents, state.seIdx, now, 0.15);
     }
     hud.update();
+    if (state.effects) fx.update(now, window.SekaiSUS.accumulateTicks(now, state.score.tempos), cfg.mirror);
     renderer.render({
       score: state.score, drawData: state.drawData, cfg,
       nowSec: now, nowScaled: scaled, fx: state.effects ? fx : null,
@@ -281,6 +333,7 @@
     $('cfg-bgmVol-v').textContent = parseFloat(e.target.value).toFixed(2);
   });
   $('cfg-skin').addEventListener('change', (e) => loadSkin(e.target.value).catch(() => status('スキン読み込み失敗')));
+  $('cfg-fxq').addEventListener('change', (e) => fx.setProfile(+e.target.value));
   $('cfg-seSet').addEventListener('change', async (e) => {
     audio.seSet = e.target.value;
     if (audio.seSet !== 'off') await audio.loadSE(audio.seSet);

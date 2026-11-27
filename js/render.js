@@ -11,10 +11,15 @@
     TOUCH_SPRITES = D.touchSprites, TRANSFORMS = D.transforms;
 
   // Sprite indices (NoteSpriteIndex enum order)
+  // Sprite indices into MMW_DATA.noteSprites. NOTE: the generated table keeps
+  // the native resource order, in which the critical "among" diamonds come
+  // BEFORE the normal ones (7 = long_among_crtcl, 8 = long_among,
+  // 9 = friction_among_crtcl, 10 = friction_among_long) — mapping these by
+  // name order instead swaps the normal/critical diamond colors.
   const SPR = {
     CRITICAL: 0, FLICK: 1, LONG: 2, TAP: 3, FRICTION: 4, FRICTION_CRITICAL: 5,
-    FRICTION_FLICK: 6, LONG_AMONG: 7, LONG_AMONG_CRITICAL: 8, FRICTION_AMONG: 9,
-    FRICTION_AMONG_CRITICAL: 10, FRICTION_AMONG_FLICK: 11,
+    FRICTION_FLICK: 6, LONG_AMONG: 8, LONG_AMONG_CRITICAL: 7, FRICTION_AMONG: 10,
+    FRICTION_AMONG_CRITICAL: 9, FRICTION_AMONG_FLICK: 11,
     ARROW_01: 12, ARROW_CRIT_01: 24, SIMULTANEOUS: 36,
   };
   const TR = { NOTE_LEFT: 0, NOTE_MID: 1, NOTE_RIGHT: 2, DIAMOND: 3, ARROW_LEFT1: 4, ARROW_UP1: 10, SIMULT: 16, HOLD_TICK: 17 };
@@ -96,7 +101,7 @@
     }
     if (note.type === 'holdMid') return note.critical ? SPR.LONG_AMONG_CRITICAL : SPR.LONG_AMONG;
     if (note.critical) return SPR.CRITICAL;
-    if (note.flick !== 'none' && note.type !== 'hold' && note.type !== 'holdMid') return SPR.FLICK;
+    if (note.flick !== 'none' && !note.dirOnly && note.type !== 'hold' && note.type !== 'holdMid') return SPR.FLICK;
     if (note.type === 'hold' || note.type === 'holdEnd') return SPR.LONG;
     return SPR.TAP;
   }
@@ -104,9 +109,18 @@
     if (note.critical) return SPR.FRICTION_AMONG_CRITICAL;
     return note.flick !== 'none' ? SPR.FRICTION_AMONG_FLICK : SPR.FRICTION_AMONG;
   }
+  // Flick arrow sprites by width (1..6). The generated table interleaves the
+  // diagonal variants irregularly (native resource order), so use explicit
+  // tables: normal straight/diagonal and critical straight/diagonal.
+  const ARROW_TABLE = {
+    nS: [12, 14, 16, 18, 20, 22], nD: [25, 27, 17, 19, 21, 23],
+    cS: [24, 26, 28, 30, 32, 34], cD: [13, 15, 29, 31, 33, 35],
+  };
   function getFlickArrowSpriteIndex(note) {
-    const start = note.critical ? SPR.ARROW_CRIT_01 : SPR.ARROW_01;
-    return start + (Math.min(note.width, 6) - 1) * 2 + (note.flick !== 'default' ? 1 : 0);
+    const w = clamp(Math.min(note.width, 6), 1, 6) - 1;
+    const diag = note.flick !== 'default';
+    return note.critical ? (diag ? ARROW_TABLE.cD[w] : ARROW_TABLE.cS[w])
+      : (diag ? ARROW_TABLE.nD[w] : ARROW_TABLE.nS[w]);
   }
 
   // ---- GL setup ------------------------------------------------------------
@@ -137,6 +151,22 @@ out vec4 outColor; void main(){ outColor = texture(uTex, vUv) * uTint; }`;
   const VS_BG = `#version 300 es
 layout(location=0) in vec2 aPos; layout(location=1) in vec2 aUv; out vec2 vUv;
 void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
+
+  // Effect pass shaders (from sekai-mmw-preview-web's glRenderer.ts):
+  // positions are projected NDC; aRw restores perspective-correct UVs.
+  const VS_FX = `#version 300 es
+precision mediump float;
+layout(location=0) in vec2 aPos; layout(location=1) in vec2 aUv;
+layout(location=2) in vec4 aColor; layout(location=3) in float aRw;
+out vec2 vUv; out vec4 vColor;
+void main(){ vUv=aUv; vColor=aColor;
+  float w = aRw != 0.0 ? (1.0 / aRw) : 1.0;
+  gl_Position = vec4(aPos * w, 0.0, w); }`;
+  const FS_FX = `#version 300 es
+precision mediump float;
+in vec2 vUv; in vec4 vColor; uniform sampler2D uTex; out vec4 outColor;
+void main(){ vec4 tc = texture(uTex, vUv) * vColor;
+  outColor = vec4(tc.rgb * tc.a, tc.a); }`;
 
   function fillRect(tw, th, srcAspect) {
     const ta = tw / th;
@@ -182,6 +212,24 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
       this.indexCap = 0;
       this.worldScale = [1, 1]; this.screenBias = 0; this.ref = [1920, 1080];
       this.quads = [];
+      // effect pass (MMW particle quads in NDC space)
+      this.fxProg = this.program(VS_FX, FS_FX, ['uTex']);
+      this.fxVao = gl.createVertexArray();
+      this.fxVbo = gl.createBuffer();
+      this.fxEbo = gl.createBuffer();
+      gl.bindVertexArray(this.fxVao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.fxVbo);
+      const fxStride = 9 * 4;
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, fxStride, 0);
+      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, fxStride, 8);
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 4, gl.FLOAT, false, fxStride, 16);
+      gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, fxStride, 32);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.fxEbo);
+      gl.bindVertexArray(null);
+      this.fxIndexCap = 0;
+      this.fxQuadsUnder = [];
+      this.fxQuadsOver = [];
+      this.fxOpacity = 1;
     }
     program(vs, fs, uniforms) {
       const gl = this.gl;
@@ -267,19 +315,20 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
       this.pushQuad(positions, makeUv(sprite[0], sprite[2], sprite[1], sprite[3]), tex, r, g, b, a, z, blend);
     }
 
-    drawNoteBase(note, noteLeft, noteRight, y, zScalar, cfg) {
+    drawNoteBase(note, noteLeft, noteRight, y, zScalar, cfg, tint) {
       const sprite = NOTE_SPRITES[getNoteSpriteIndex(note)];
       const h = NOTE_HEIGHT;
       const noteTop = 1 - h, noteBottom = 1 + h;
       let L = noteLeft, R = noteRight;
       if (cfg.mirror) { const t = -L; L = -R; R = t; }
       const z = zIndex(note.friction ? LAYER.TICK_NOTE : LAYER.BASE_NOTE, L + (R - L) / 2, y * (zScalar || 1));
+      const [tr, tg, tb] = tint || [1, 1, 1];
       const mid = scaleQuad(applyTransform(TR.NOTE_MID, perspPos(L + 0.25, R - 0.3, noteTop, noteBottom)), y);
-      this.pushQuad(mid, makeUv(sprite[0] + NOTE_SIDE_WIDTH, sprite[2] - NOTE_SIDE_WIDTH, sprite[1], sprite[3]), 0, 1, 1, 1, 1, z);
+      this.pushQuad(mid, makeUv(sprite[0] + NOTE_SIDE_WIDTH, sprite[2] - NOTE_SIDE_WIDTH, sprite[1], sprite[3]), 0, tr, tg, tb, 1, z);
       const left = scaleQuad(applyTransform(TR.NOTE_LEFT, perspPos(L, L + 0.25, noteTop, noteBottom)), y);
-      this.pushQuad(left, makeUv(sprite[0] + NOTE_SIDE_PAD, sprite[0] + NOTE_SIDE_WIDTH, sprite[1], sprite[3]), 0, 1, 1, 1, 1, z);
+      this.pushQuad(left, makeUv(sprite[0] + NOTE_SIDE_PAD, sprite[0] + NOTE_SIDE_WIDTH, sprite[1], sprite[3]), 0, tr, tg, tb, 1, z);
       const right = scaleQuad(applyTransform(TR.NOTE_RIGHT, perspPos(R - 0.3, R, noteTop, noteBottom)), y);
-      this.pushQuad(right, makeUv(sprite[2] - NOTE_SIDE_WIDTH, sprite[2] - NOTE_SIDE_PAD, sprite[1], sprite[3]), 0, 1, 1, 1, 1, z);
+      this.pushQuad(right, makeUv(sprite[2] - NOTE_SIDE_WIDTH, sprite[2] - NOTE_SIDE_PAD, sprite[1], sprite[3]), 0, tr, tg, tb, 1, z);
     }
     drawTraceDiamond(note, noteLeft, noteRight, y, cfg) {
       const sprite = NOTE_SPRITES[getFrictionSpriteIndex(note)];
@@ -317,6 +366,7 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
         let L = line.xPos.min, R = line.xPos.max;
         if (cfg.mirror) { const t = -L; L = -R; R = t; }
         const y = approach(line.visualTime.min, line.visualTime.max, nowScaled);
+        if (cfg.apMin && y < cfg.apMin) continue;
         const quad = scaleQuad(applyTransform(TR.SIMULT, perspPos(L, R, 1 + NOTE_HEIGHT, 1 - NOTE_HEIGHT)), y);
         this.pushSpriteQuad(quad, sprite, 0, 1, 1, 1, 1, zIndex(LAYER.UNDER_FX, 0, y));
       }
@@ -328,6 +378,7 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
         if (!note) continue;
         const sprite = NOTE_SPRITES[getNoteSpriteIndex(note)];
         const y = approach(tick.visualTime.min, tick.visualTime.max, nowScaled);
+        if (cfg.apMin && y < cfg.apMin) continue;
         const h = NOTE_HEIGHT * 1.3;
         const w = h / SCALED_ASPECT;
         const center = tick.center * (cfg.mirror ? -1 : 1);
@@ -341,6 +392,7 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
         const note = this.score.notes.get(drawing.refID);
         if (!note) continue;
         const y = approach(drawing.visualTime.min, drawing.visualTime.max, nowScaled);
+        if (cfg.apMin && y < cfg.apMin) continue;
         const L = laneToLeft(note.lane), R = L + note.width;
         if (note.skip) {
           // decorative skip notes: greyed base only
@@ -350,7 +402,7 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
           this.pushSpriteQuad(quad, sprite, 0, 0.45, 0.45, 0.5, 0.85, zIndex(LAYER.BASE_NOTE, L + note.width / 2, y));
           continue;
         }
-        if (!note.hideBase) this.drawNoteBase(note, L, R, y, 1, cfg);
+        if (!note.hideBase) this.drawNoteBase(note, L, R, y, 1, cfg, note.damage ? [0.63, 0.5, 0.92] : undefined);
         if (note.friction) this.drawTraceDiamond(note, L, R, y, cfg);
         if (note.flick !== 'none' && note.type !== 'hold' && note.type !== 'holdMid') {
           this.drawFlickArrow(note, y, nowSec, cfg);
@@ -419,13 +471,15 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
         let fromPct = 0;
         let stepStartScaled = startScaled;
         let stepTop = approach(stepStartScaled - seg.visibleDuration, stepStartScaled, nowScaled);
+        const apMin = cfg.apMin || 0;
         let stepStartProgress = startProgress;
         const alpha = seg.isGuide ? cfg.guideAlpha : cfg.holdAlpha;
         const z = zIndex(seg.isGuide ? LAYER.GUIDE_PATH : LAYER.HOLD_PATH, holdStartCenter, seg.activeTime / totalTime);
         for (let i = 0; i < steps; i++) {
+          if (stepTop <= apMin) break; // beyond the display-start cutoff
           const toPct = (i + 1) / steps;
           const stepEndScaled = lerp(startScaled, endScaled, toPct);
-          const stepBottom = approach(stepEndScaled - seg.visibleDuration, stepEndScaled, nowScaled);
+          const stepBottom = Math.max(approach(stepEndScaled - seg.visibleDuration, stepEndScaled, nowScaled), apMin);
           const stepEndProgress = lerp(startProgress, endProgress, toPct);
           const sL = easeVal(seg.ease, startLeft, endLeft, stepStartProgress);
           const eL = easeVal(seg.ease, startLeft, endLeft, stepEndProgress);
@@ -552,7 +606,7 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
         for (let i = 0; i < 4; i++) {
           data[o++] = q.positions[i].x;
           data[o++] = q.positions[i].y;
-          data[o++] = q.positions[i].y; // w = virtual y (projective parameter)
+          data[o++] = 1.0; // reciprocalW: note quads are affine (native packQuads default)
           data[o++] = q.uvs[i].x;
           data[o++] = q.uvs[i].y;
           data[o++] = q.r; data[o++] = q.g; data[o++] = q.b; data[o++] = q.a;
@@ -591,6 +645,68 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
       gl.bindVertexArray(null);
     }
 
+    // ---- effect quads (NDC positions + reciprocal W, effect texture) ------
+    pushFxQuad(pass, positions, uvRect, r, g, b, a, additive, order) {
+      const [tw, th] = this.texSizes[3];
+      const uvs = uvRect.map((p) => ({ x: p.x / tw, y: p.y / th }));
+      const q = { positions, uvs, r, g, b, a: a * this.fxOpacity, additive: !!additive, order };
+      (pass === 'under' ? this.fxQuadsUnder : this.fxQuadsOver).push(q);
+    }
+    ensureFxIndices(count) {
+      if (count <= this.fxIndexCap) return;
+      const cap = Math.max(count, this.fxIndexCap * 2, 1024);
+      const idx = new Uint32Array(cap * 6);
+      for (let q = 0, o = 0, v = 0; q < cap; q++, o += 6, v += 4) {
+        idx[o] = v; idx[o + 1] = v + 1; idx[o + 2] = v + 2;
+        idx[o + 3] = v; idx[o + 4] = v + 2; idx[o + 5] = v + 3;
+      }
+      const gl = this.gl;
+      gl.bindVertexArray(this.fxVao);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.fxEbo);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+      gl.bindVertexArray(null);
+      this.fxIndexCap = cap;
+    }
+    flushFx(quads) {
+      if (!quads.length) return;
+      const gl = this.gl;
+      quads.sort((a, b) => a.order - b.order); // stable: keeps emission order within an order value
+      this.ensureFxIndices(quads.length);
+      const data = new Float32Array(quads.length * 36);
+      let o = 0;
+      for (const q of quads) {
+        for (let i = 0; i < 4; i++) {
+          data[o++] = q.positions[i].x;
+          data[o++] = q.positions[i].y;
+          data[o++] = q.uvs[i].x;
+          data[o++] = q.uvs[i].y;
+          data[o++] = q.r; data[o++] = q.g; data[o++] = q.b; data[o++] = q.a;
+          data[o++] = q.positions[i].rw;
+        }
+      }
+      gl.bindVertexArray(this.fxVao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.fxVbo);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      gl.useProgram(this.fxProg.p);
+      gl.uniform1i(this.fxProg.u.uTex, 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.textures[3]);
+      let start = 0;
+      let curAdd = quads[0].additive;
+      const setBlend = (add) => {
+        if (add) gl.blendFunc(gl.ONE, gl.ONE);
+        else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      };
+      setBlend(curAdd);
+      for (let i = 1; i <= quads.length; i++) {
+        if (i === quads.length || quads[i].additive !== curAdd) {
+          gl.drawElements(gl.TRIANGLES, (i - start) * 6, gl.UNSIGNED_INT, start * 6 * 4);
+          if (i < quads.length) { start = i; curAdd = quads[i].additive; setBlend(curAdd); }
+        }
+      }
+      gl.bindVertexArray(null);
+    }
+
     render(state) {
       const { score, drawData, cfg, nowSec, nowScaled, fx } = state;
       this.score = score; this.drawData = drawData;
@@ -599,13 +715,19 @@ void main(){ vUv=aUv; gl_Position=vec4(aPos,0.0,1.0); }`;
       gl.clear(gl.COLOR_BUFFER_BIT);
       this.drawBackgroundPass(cfg);
       this.drawStagePass(cfg);
+      this.fxOpacity = cfg.effectOpacity != null ? cfg.effectOpacity : 1;
+      this.fxQuadsUnder.length = 0;
+      this.fxQuadsOver.length = 0;
+      if (fx) fx.emitUnder(this, nowSec);
+      this.flushFx(this.fxQuadsUnder);
       this.beginFrame();
       this.drawHoldSegments(nowSec, nowScaled, cfg);
       this.drawLines(nowScaled, cfg);
       this.drawHoldTicks(nowScaled, cfg);
       this.drawNotes(nowSec, nowScaled, cfg);
-      if (fx) fx.emitQuads(this, nowSec);
       this.flushQuads();
+      if (fx) fx.emitOver(this, nowSec);
+      this.flushFx(this.fxQuadsOver);
     }
   }
 

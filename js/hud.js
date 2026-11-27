@@ -33,6 +33,7 @@
       this.update();
     }
     onHit(ev, nowSec) {
+      if (!ev.combo) return; // holdLoop / deco events: sound only, no judgement
       const w = ev.auto ? 0.1 : 1;
       let gain = this.basePerWeight * w;
       if (nowSec < this.skillUntil) gain *= this.skillRate;

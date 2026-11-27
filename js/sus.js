@@ -20,10 +20,12 @@
     if (c >= 'a' && c <= 'z') return c.charCodeAt(0) - 87; // a=10
     return -1;
   };
-  // SUS lane char -> internal lane (0..11); 'f' -> 13 (fever), 'e' -> -2 (skill lane)
+  // SUS lane char -> internal lane (0..11); 'f' -> 13 (fever), 'e' -> -2,
+  // '0' -> -3 (skill lane). Play lanes are SUS 2..13 ('2'..'d').
   const noteLine = (c) => {
     if (c === 'f') return 13;
     if (c === 'e') return -2;
+    if (c === '0') return -3;
     const v = susDigit(c);
     return v >= 2 && v <= 13 ? v - 2 : -1;
   };
@@ -113,6 +115,14 @@
     }
     const tickOf = (bar, progress) =>
       barStart[bar] + Math.round(progress * barBeats[bar] * ticksPerBeat);
+    // 1/8-measure grid ticks across the chart (hold auto-tick grid,
+    // anchored at measure boundaries like test10's k/8 bar grid).
+    const barGridTicks = [];
+    for (let b = 0; b <= maxBar; b++) {
+      for (let j = 0; j < 8; j++) {
+        barGridTicks.push(barStart[b] + Math.round((j * barBeats[b] * ticksPerBeat) / 8));
+      }
+    }
 
     // ---- tempos ----------------------------------------------------------
     const tempos = [];
@@ -136,6 +146,17 @@
     const infos = [];
     for (const n of rawNotes) {
       infos.push({ ...n, tick: tickOf(n.bar, n.progress) });
+    }
+    // Drop exact duplicate infos (some distributed SUS files repeat whole
+    // lines; a duplicated tap would otherwise draw and sound twice).
+    {
+      const seen = new Set();
+      for (let i = infos.length - 1; i >= 0; i--) {
+        const n = infos[i];
+        const key = [n.kind, n.tick, n.lane, n.width, n.cat || '', n.flick || '', n.ease || '', n.longNo ?? '', n.eventType || ''].join('|');
+        if (seen.has(key)) infos.splice(i, 1);
+        else seen.add(key);
+      }
     }
 
     const notes = new Map();
@@ -162,14 +183,38 @@
         inheritIndex.get(key).push(info);
       }
     }
+    // Attachment is exclusive, as in test10: a coincident tap/directional
+    // belongs to the FIRST slide/guide info at its slot (file order —
+    // real slide lines precede guide lines), so a guide head sitting on
+    // the same slot as a real head does not steal the real head's tap
+    // attributes (critical / friction / hidden).
+    const claimOf = new Map(); // tap/directional info -> claiming slide/guide info
+    {
+      const claimedSlots = new Set();
+      for (const info of infos) {
+        if (info.kind !== 'slide' && info.kind !== 'guide') continue;
+        const key = info.tick + ',' + info.lane + ',' + info.width;
+        if (claimedSlots.has(key)) continue;
+        claimedSlots.add(key);
+        for (const other of inheritIndex.get(info.tick + ',' + info.lane) || []) {
+          if (other.width === info.width && !claimOf.has(other)) claimOf.set(other, info);
+        }
+      }
+    }
     const inherit = (info) => {
-      // returns merged attributes from coincident tap/directional infos
+      // returns merged attributes from coincident tap/directional infos.
+      // Attachment requires the same slot: tick + lane + width (test10
+      // sameSlot) — a wider/narrower tap at the same position is separate.
       const out = { critical: false, friction: false, hideBase: false, flick: 'none', ease: 'linear' };
       const coincident = inheritIndex.get(info.tick + ',' + info.lane) || [];
       for (const other of coincident) {
+        if (other.width !== info.width) continue;
+        if (claimOf.get(other) !== info) continue;
         if (other.kind === 'tap') {
           if (other.critical) out.critical = true;
-          if (other.cat === 'friction' || other.cat === 'frictionHide') out.friction = true;
+          // trend (trace) is tap types 5/6 only; types 7/8 are hidden
+          // traces and set hideBase without making the note a trace.
+          if (other.cat === 'friction') out.friction = true;
           if (other.cat === 'frictionHide') out.hideBase = true;
         } else if (other.kind === 'directional') {
           if (other.flick) out.flick = other.flick;
@@ -179,14 +224,20 @@
       return out;
     };
 
-    // Taps (standalone). A tap coincident with a slide/guide start or end is
-    // absorbed as that note's head attributes, not drawn separately.
+    // Taps (standalone). A tap coincident with ANY slide/guide info at the
+    // same tick+lane+width (start, mid, hidden mid, or end) is absorbed as
+    // that info's attribute source, not drawn as a separate note.
     const absorbed = new Set();
+    const baseSlots = new Set();
+    for (const info of infos) {
+      if (info.kind === 'slide' || info.kind === 'guide') {
+        baseSlots.add(info.tick + ',' + info.lane + ',' + info.width);
+      }
+    }
     for (const info of infos) {
       if (info.kind !== 'tap') continue;
-      const key = info.tick + ',' + info.lane;
-      const bases = baseAt.get(key);
-      if (bases && bases.some((b) => b.cat === 'start' || b.cat === 'end')) absorbed.add(info);
+      const key = info.tick + ',' + info.lane + ',' + info.width;
+      if (baseSlots.has(key)) absorbed.add(info);
     }
 
     for (const info of infos) {
@@ -196,20 +247,20 @@
       addNote({
         type: 'tap', tick: info.tick, lane: info.lane, width: info.width,
         critical: !!info.critical, friction: info.cat === 'friction' || info.cat === 'frictionHide',
-        hideBase: info.cat === 'frictionHide', skip: info.cat === 'skip',
+        hideBase: info.cat === 'frictionHide', damage: info.cat === 'damage',
         flick: info.flick || 'none', parentID: -1, speedRatio: info.speedRatio || 1,
       });
     }
-    // Directional flicks that target standalone taps:
+    // Directional flicks that target standalone taps (same slot only):
     const tapIndex = new Map();
     for (const note of notes.values()) {
-      const key = note.tick + ',' + note.lane;
+      const key = note.tick + ',' + note.lane + ',' + note.width;
       if (!tapIndex.has(key)) tapIndex.set(key, []);
       tapIndex.get(key).push(note);
     }
     for (const info of infos) {
       if (info.kind !== 'directional' || !info.flick) continue;
-      const targets = tapIndex.get(info.tick + ',' + info.lane) || [];
+      const targets = tapIndex.get(info.tick + ',' + info.lane + ',' + info.width) || [];
       for (const note of targets) note.flick = info.flick;
     }
 
@@ -227,24 +278,34 @@
       let open = null;
       const closeChain = (endInfo) => {
         if (!open) return;
-        const startInh = inherit(open.start);
         const startNote = notes.get(open.startNoteId);
-        if (startNote) {
-          startNote.critical = startNote.critical || startInh.critical;
-          startNote.friction = startNote.friction || startInh.friction;
-          if (startInh.hideBase) startNote.hideBase = true;
-          if (startInh.flick !== 'none') startNote.flick = startInh.flick;
-        }
         let endNote = null;
         if (endInfo) {
           const endInh = inherit(endInfo);
+          // Chain-end attributes follow test10 exactly: critical comes
+          // from the end's own attachments OR the chain head (crit()
+          // resolves through the head — a critical slide's end is
+          // critical), while friction/trend comes ONLY from the end's
+          // own coincident tap (type 5/6 at the same slot): a slide
+          // whose end slot carries a trace tap ends as a trace note.
+          // Trend never propagates from the head. (The gold trace
+          // diamond once seen at 691 APPEND bar 4 came from wrong
+          // critical inheritance, not from friction itself.)
           endNote = addNote({
             type: 'holdEnd', tick: endInfo.tick, lane: endInfo.lane, width: endInfo.width,
-            critical: endInh.critical, friction: false, hideBase: false, skip: false,
+            critical: endInh.critical || (startNote ? startNote.critical : false),
+            friction: endInh.friction,
+            hideBase: endInh.hideBase, damage: false,
             flick: endInh.flick !== 'none' ? endInh.flick : 'none',
             parentID: open.startNoteId, speedRatio: endInfo.speedRatio || 1,
           });
-          if (startNote && endInh.critical) startNote.critical = true;
+        }
+        // Relay diamonds take the head's criticality too.
+        if (startNote && startNote.critical) {
+          for (const step of open.steps) {
+            const stepNote = notes.get(step.id);
+            if (stepNote) stepNote.critical = true;
+          }
         }
         holdNotes.set(open.startNoteId, {
           start: { id: open.startNoteId, ease: open.startEase },
@@ -270,10 +331,23 @@
           const inh = inherit(info);
           const mid = addNote({
             type: 'holdMid', tick: info.tick, lane: info.lane, width: info.width,
-            critical: inh.critical, friction: false, hideBase: false, skip: false,
+            critical: inh.critical, friction: false, hideBase: false, damage: false,
             flick: 'none', parentID: open.startNoteId, speedRatio: info.speedRatio || 1,
           });
-          open.steps.push({ id: mid.id, type: info.cat === 'mid' ? 'normal' : 'hidden', ease: inh.ease });
+          // Path rule (test10 isPath): a type-3 relay carrying a tap but no
+          // directional is a pass-through marker — the ribbon runs straight
+          // between the surrounding path points and the relay's diamond is
+          // drawn at the interpolated position.
+          const coincident = inheritIndex.get(info.tick + ',' + info.lane) || [];
+          const hasTap = coincident.some((o) => o.kind === 'tap' && o.width === info.width);
+          const hasDir = coincident.some((o) => o.kind === 'directional' && o.width === info.width);
+          open.steps.push({
+            id: mid.id,
+            type: isGuide ? 'hidden' : (info.cat === 'mid' ? 'normal' : 'hidden'),
+            ease: inh.ease,
+            passthrough: info.cat === 'mid' && hasTap && !hasDir,
+            hideTick: inh.hideBase,
+          });
         } else if (info.cat === 'end') {
           if (!open) {
             // Orphan end: treat as a tap so it is not lost.
@@ -291,11 +365,57 @@
       if (open) closeChain(null);
     }
 
+    // Taps attached to guide (deco) infos render as standalone notes,
+    // classified by the tap's own type (test10 buildPlay deco branch):
+    // trace / damage / flick / tap. The guide chain itself carries no
+    // note bodies, so these are the only notes on a guide. A tap that a
+    // non-guide slide info claims at the same slot belongs to that slide
+    // (slide lines precede guide lines), not to the guide.
+    const emittedDecoTaps = new Set();
+    for (const info of infos) {
+      if (info.kind !== 'guide') continue;
+      const slotKey = info.tick + ',' + info.lane + ',' + info.width;
+      const claimedBySlide = infos.some((o) => o.kind === 'slide' && (o.tick + ',' + o.lane + ',' + o.width) === slotKey);
+      if (claimedBySlide) continue;
+      const coincident = inheritIndex.get(info.tick + ',' + info.lane) || [];
+      const dirFlick = inherit(info).flick;
+      for (const tapInfo of coincident) {
+        if (tapInfo.kind !== 'tap' || tapInfo.width !== info.width) continue;
+        if (tapInfo.cat === 'frictionHide') continue; // hidden trace: no note
+        if (emittedDecoTaps.has(tapInfo)) continue;
+        emittedDecoTaps.add(tapInfo);
+        addNote({
+          type: 'tap', tick: info.tick, lane: info.lane, width: info.width,
+          critical: !!tapInfo.critical, friction: tapInfo.cat === 'friction',
+          hideBase: false, damage: tapInfo.cat === 'damage',
+          flick: dirFlick !== 'none' ? dirFlick : (tapInfo.flick || 'none'),
+          // A directional on a plain tap gives it an arrow but keeps the
+          // tap body (test10 deco branch); only type-3 taps are flick notes.
+          dirOnly: dirFlick !== 'none' && tapInfo.cat !== 'flick',
+          parentID: -1, speedRatio: tapInfo.speedRatio || 1, deco: true,
+        });
+      }
+    }
+    // Directionals that attach to nothing render as flick notes
+    // (test10 keeps orphan dir notes as flicks).
+    for (const info of infos) {
+      if (info.kind !== 'directional' || !info.flick) continue;
+      const hasTap = (inheritIndex.get(info.tick + ',' + info.lane) || [])
+        .some((o) => o.kind === 'tap' && o.width === info.width);
+      if (hasTap || baseSlots.has(info.tick + ',' + info.lane + ',' + info.width)) continue;
+      if (info.lane < 0 || info.lane > 11) continue;
+      addNote({
+        type: 'tap', tick: info.tick, lane: info.lane, width: info.width,
+        critical: false, friction: false, hideBase: false, damage: false,
+        flick: info.flick, parentID: -1, speedRatio: info.speedRatio || 1,
+      });
+    }
+
     let maxTick = 0;
     for (const n of notes.values()) maxTick = Math.max(maxTick, n.tick);
     events.sort((a, b) => a.tick - b.tick);
 
-    return { notes, holdNotes, tempos, hiSpeeds, seVolumes, events, maxTick, musicOffset, ticksPerBeat };
+    return { notes, holdNotes, tempos, hiSpeeds, seVolumes, events, maxTick, musicOffset, ticksPerBeat, barGridTicks };
   }
 
   function parseTimedRatios(line, prefix, target) {
@@ -334,17 +454,25 @@
       const width = noteWidth(value[1]);
       const progress = i / values.length;
       const speedRatio = i < speedRatios.length ? speedRatios[i] : 1;
+      if (lane === -3 && laneType === 1) {
+        // Skill lane (SUS lane '0'): every cell is a skill activation.
+        rawNotes.push({ kind: 'event', eventType: 'skill', bar, progress, lane, width: 1 });
+        return;
+      }
       if (lane === 13 && laneType === 1) {
         if (code === 1) rawNotes.push({ kind: 'event', eventType: 'feverBegin', bar, progress, lane, width: 1 });
-        else if (code === 2) rawNotes.push({ kind: 'event', eventType: 'feverStart', bar, progress, lane, width: 1 });
+        else if (code >= 2) rawNotes.push({ kind: 'event', eventType: 'feverStart', bar, progress, lane, width: 1 });
         return;
       }
       if (longNo === -1 && laneType === 1) {
+        // Play-lane tap types (test10-main semantics, user-verified):
+        // 1 normal, 2 critical, 3 flick, 4 damage, 5 trace, 6 critical
+        // trace, 7 hidden trace, 8 critical hidden trace.
         switch (code) {
           case 1: rawNotes.push({ kind: 'tap', cat: 'normal', bar, progress, lane, width, speedRatio }); break;
           case 2: rawNotes.push({ kind: 'tap', cat: 'normal', critical: true, bar, progress, lane, width, speedRatio }); break;
-          case 3: rawNotes.push({ kind: 'tap', cat: 'skip', bar, progress, lane, width, speedRatio }); break;
-          case 4: rawNotes.push({ kind: 'event', eventType: 'skill', bar, progress, lane, width: 1 }); break;
+          case 3: rawNotes.push({ kind: 'tap', cat: 'flick', flick: 'default', bar, progress, lane, width, speedRatio }); break;
+          case 4: rawNotes.push({ kind: 'tap', cat: 'damage', bar, progress, lane, width, speedRatio }); break;
           case 5: rawNotes.push({ kind: 'tap', cat: 'friction', bar, progress, lane, width, speedRatio }); break;
           case 6: rawNotes.push({ kind: 'tap', cat: 'friction', critical: true, bar, progress, lane, width, speedRatio }); break;
           case 7: rawNotes.push({ kind: 'tap', cat: 'frictionHide', bar, progress, lane, width, speedRatio }); break;
@@ -369,7 +497,8 @@
         switch (code) {
           case 1: rawNotes.push({ kind: 'guide', cat: 'start', longNo, bar, progress, lane, width, speedRatio }); break;
           case 2: rawNotes.push({ kind: 'guide', cat: 'end', longNo, bar, progress, lane, width, speedRatio }); break;
-          case 3: case 5: rawNotes.push({ kind: 'guide', cat: 'midHidden', longNo, bar, progress, lane, width, speedRatio }); break;
+          case 3: rawNotes.push({ kind: 'guide', cat: 'mid', longNo, bar, progress, lane, width, speedRatio }); break;
+          case 5: rawNotes.push({ kind: 'guide', cat: 'midHidden', longNo, bar, progress, lane, width, speedRatio }); break;
         }
       }
     });
@@ -419,5 +548,21 @@
     return total;
   }
 
-  window.SekaiSUS = { parseSUS, accumulateDuration, accumulateScaledDuration, accumulateTicks, TPB };
+  // Completeness validation for transactional chart loading: a truncated or
+  // corrupt SUS yields degenerate holds (closed with end == start because the
+  // real end event never arrived). Such a chart must never be displayed.
+  function validateScore(score) {
+    if (!score || !score.notes || score.notes.size === 0) return 'empty';
+    if (!score.tempos || score.tempos.length === 0 || !(score.maxTick > 0)) return 'no-tempo';
+    for (const hold of score.holdNotes.values()) {
+      const startNote = score.notes.get(hold.start.id);
+      const endNote = score.notes.get(hold.end);
+      if (!startNote || !endNote || endNote.type !== 'holdEnd' || !(endNote.tick > startNote.tick)) {
+        return 'unclosed-hold';
+      }
+    }
+    return null;
+  }
+
+  window.SekaiSUS = { parseSUS, accumulateDuration, accumulateScaledDuration, accumulateTicks, validateScore, TPB };
 })();

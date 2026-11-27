@@ -46,48 +46,66 @@
     const startNote = score.notes.get(hold.start.id);
     const noteDuration = noteVisibleDuration(startNote, score, drawData.noteSpeed);
     const activeTime = accumulateDuration(startNote.tick, score.tempos);
-    let startTime = activeTime;
-    const head0 = {
-      id: startNote.id, tick: startNote.tick,
-      time: accumulateScaledDuration(startNote.tick, score.tempos, score.hiSpeeds),
-      left: laneToLeft(startNote.lane), right: laneToLeft(startNote.lane) + startNote.width,
-      ease: hold.start.ease,
-    };
-    let head = head0;
-    const steps = hold.steps;
-    for (let tailIndex = 0; tailIndex <= steps.length; tailIndex++) {
-      const isEnd = tailIndex === steps.length;
-      const tailStep = isEnd ? { id: hold.end, type: 'hidden', ease: 'linear' } : steps[tailIndex];
-      if (!isEnd && tailStep.type === 'skip') continue;
-      const tailNote = score.notes.get(tailStep.id);
-      if (!tailNote) continue;
-      const tail = {
-        id: tailNote.id, tick: tailNote.tick,
-        time: accumulateScaledDuration(tailNote.tick, score.tempos, score.hiSpeeds),
-        left: laneToLeft(tailNote.lane), right: laneToLeft(tailNote.lane) + tailNote.width,
-        ease: tailStep.ease,
-      };
-      const endTime = accumulateDuration(tailNote.tick, score.tempos);
+    const mkPt = (note, ease) => ({
+      id: note.id, tick: note.tick,
+      time: accumulateScaledDuration(note.tick, score.tempos, score.hiSpeeds),
+      left: laneToLeft(note.lane), right: laneToLeft(note.lane) + note.width,
+      ease, realTime: accumulateDuration(note.tick, score.tempos),
+    });
+    // Path points: pass-through relays are not vertices; the ribbon runs
+    // straight (with the head's ease) between surrounding path points.
+    const pts = [mkPt(startNote, hold.start.ease)];
+    for (const step of hold.steps) {
+      if (step.passthrough) continue;
+      const n = score.notes.get(step.id);
+      if (n) pts.push(mkPt(n, step.ease));
+    }
+    const endNote = score.notes.get(hold.end);
+    if (endNote && endNote.id !== startNote.id) pts.push(mkPt(endNote, 'linear'));
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const head = pts[i], tail = pts[i + 1];
       drawData.drawingHoldSegments.push({
         endID: hold.end, ease: head.ease, isGuide: hold.startType === 'guide',
-        critical: score.notes.get(head.id).critical, tailStepIndex: tailIndex,
+        critical: score.notes.get(head.id).critical, tailStepIndex: i,
         headTime: head.time, tailTime: tail.time,
         headLeft: head.left, headRight: head.right, tailLeft: tail.left, tailRight: tail.right,
-        startTime, endTime, activeTime, visibleDuration: noteDuration,
+        startTime: head.realTime, endTime: tail.realTime, activeTime, visibleDuration: noteDuration,
       });
-      startTime = endTime;
-      if (tailStep.type !== 'hidden') {
-        const tickTime = tail.time;
-        drawData.drawingHoldTicks.push({
-          refID: tailNote.id, center: noteCenter(tailNote),
-          visualTime: { min: tickTime - noteDuration, max: tickTime }, visibleDuration: noteDuration,
-        });
+    }
+    // Relay diamonds: pass-through relays sit at the interpolated position
+    // on their containing segment.
+    for (const step of hold.steps) {
+      if (step.type === 'hidden' || step.hideTick) continue;
+      const n = score.notes.get(step.id);
+      if (!n) continue;
+      const tickTime = accumulateScaledDuration(n.tick, score.tempos, score.hiSpeeds);
+      let center = noteCenter(n);
+      if (step.passthrough) {
+        for (let i = 0; i + 1 < pts.length; i++) {
+          const head = pts[i], tail = pts[i + 1];
+          if (tickTime >= head.time - 1e-9 && tickTime <= tail.time + 1e-9) {
+            const p = tail.time > head.time ? (tickTime - head.time) / (tail.time - head.time) : 0;
+            const hc = (head.left + head.right) / 2, tc = (tail.left + tail.right) / 2;
+            center = easeFn(head.ease)(hc, tc, p);
+            break;
+          }
+        }
       }
-      head = tail;
+      drawData.drawingHoldTicks.push({
+        refID: n.id, center,
+        visualTime: { min: tickTime - noteDuration, max: tickTime }, visibleDuration: noteDuration,
+      });
     }
   }
 
-  function calculateDrawData(score, noteSpeed) {
+  function calculateDrawData(score, noteSpeed, noSoflan) {
+    // noSoflan (ソフランなし): speed changes are disabled — every scaled
+    // position is computed with the hi-speed list emptied, so notes,
+    // ribbons and lines all live in plain tempo time, matching the
+    // plain clock table the host uses in this mode. Building drawData
+    // in hi-speed space while the clock runs in plain space (the old
+    // behaviour) displaced ribbons and could hide the whole chart.
+    if (noSoflan) score = Object.assign({}, score, { hiSpeeds: [] });
     const drawData = {
       noteSpeed, maxTicks: 1,
       drawingNotes: [], drawingLines: [], drawingHoldTicks: [], drawingHoldSegments: [],
@@ -97,6 +115,7 @@
     for (const note of notesDesc) {
       drawData.maxTicks = Math.max(drawData.maxTicks, note.tick);
       if (note.type === 'holdMid') continue;
+      if (note.type === 'holdEnd' && note.hideBase) continue; // hidden-trace end: no node (test10 none())
       if (note.type === 'hold') {
         const hold = score.holdNotes.get(note.id);
         if (hold && hold.startType !== 'normal') continue;
@@ -143,11 +162,11 @@
       const hold = score.holdNotes.get(note.parentID);
       if (hold) {
         const step = hold.steps.find((s) => s.id === note.id);
-        if (step && step.type === 'hidden') return '';
+        if (step && (step.type === 'hidden' || step.hideTick)) return '';
       }
       return note.critical ? 'critical_tick' : 'tick';
     }
-    if (note.flick !== 'none') return note.critical ? 'critical_flick' : 'flick';
+    if (note.flick !== 'none' && !note.dirOnly) return note.critical ? 'critical_flick' : 'flick';
     if (note.friction) return note.critical ? 'critical_friction' : 'friction';
     if (note.critical && note.type === 'tap') return 'critical_tap';
     return 'perfect';
@@ -159,15 +178,49 @@
       if (note.skip) continue;
       const hold = note.type === 'hold' || note.type === 'holdMid' || note.type === 'holdEnd'
         ? score.holdNotes.get(note.type === 'hold' ? note.id : note.parentID) : null;
-      if (hold && hold.startType === 'guide') continue;
-      if (note.type === 'hold' && hold && hold.startType === 'hidden') {
-        // FrictionHide head: no base note is drawn, but the trace SE sounds.
+      // Event gating follows the reference implementation (sekai-mmw-
+      // preview-web, native calculateHitEvents): a hold start sounds only
+      // when its startType is Normal (hidden/guide heads are silent), a
+      // hold end only when its endType is Normal, and relay ticks come
+      // only from non-hidden steps. A Normal hold start additionally
+      // emits a 'holdLoop' event spanning the whole hold: the loop sound
+      // (the pack's connect / critical_connect) plays for exactly the
+      // hold's duration instead of ringing out at full sample length.
+      if (note.type === 'hold') {
+        if (!hold || hold.startType !== 'normal') continue;
+        const kind = noteSEKind(note, score);
+        if (kind) {
+          events.push({
+            time: accumulateDuration(note.tick, score.tempos),
+            tick: note.tick, kind, noteID: note.id,
+            lane: note.lane, width: note.width, critical: note.critical,
+            volume: seVolumeAtTick(note.tick, score),
+            combo: !note.deco && !note.damage, isEnd: false, isStart: true,
+          });
+        }
+        const end = score.notes.get(hold.end);
+        if (end && end.tick > note.tick) {
+          events.push({
+            time: accumulateDuration(note.tick, score.tempos),
+            endTime: accumulateDuration(end.tick, score.tempos),
+            tick: note.tick, kind: 'holdLoop', noteID: note.id,
+            lane: note.lane, width: note.width, critical: note.critical,
+            volume: seVolumeAtTick(note.tick, score),
+            combo: false, isEnd: false, isStart: true,
+          });
+        }
+        continue;
+      }
+      if (note.type === 'holdEnd') {
+        if (!hold || hold.endType !== 'normal' || note.hideBase) continue;
+        const kind = noteSEKind(note, score);
+        if (!kind) continue;
         events.push({
           time: accumulateDuration(note.tick, score.tempos),
-          tick: note.tick, kind: note.critical ? 'critical_friction' : 'friction', noteID: note.id,
+          tick: note.tick, kind, noteID: note.id,
           lane: note.lane, width: note.width, critical: note.critical,
           volume: seVolumeAtTick(note.tick, score),
-          combo: true, isEnd: false, isStart: true,
+          combo: !note.deco && !note.damage, isEnd: true, isStart: false,
         });
         continue;
       }
@@ -178,29 +231,27 @@
         tick: note.tick, kind, noteID: note.id,
         lane: note.lane, width: note.width, critical: note.critical,
         volume: seVolumeAtTick(note.tick, score),
-        combo: true, isEnd: note.type === 'holdEnd', isStart: note.type === 'hold',
+        combo: !note.deco && !note.damage, isEnd: false, isStart: false,
       });
     }
-    // Auto hold ticks: 1/8-measure grid strictly inside each hold (game model).
+    // Auto hold ticks: 1/8-measure grid points strictly inside each hold
+    // (test10's rule: the grid runs from chain start to end, ignoring
+    // joints — a grid point on a relay counts alongside the relay).
     for (const hold of score.holdNotes.values()) {
       if (hold.startType === 'guide') continue;
       const start = score.notes.get(hold.start.id);
       const end = score.notes.get(hold.end);
       if (!start || !end || end.tick <= start.tick) continue;
-      const grid = TPB / 2; // half-beat grid (1/8 of a 4-beat measure)
       const critical = start.critical;
-      let prevTick = start.tick;
-      const joints = [...hold.steps.map((s) => score.notes.get(s.id)), end].filter(Boolean);
-      for (const joint of joints) {
-        for (let t = Math.floor(prevTick / grid + 1) * grid; t < joint.tick; t += grid) {
-          events.push({
-            time: accumulateDuration(t, score.tempos), tick: t,
-            kind: critical ? 'critical_tick' : 'tick', noteID: -1,
-            lane: start.lane, width: start.width, critical, volume: seVolumeAtTick(t, score),
-            combo: true, auto: true,
-          });
-        }
-        prevTick = joint.tick;
+      for (const t of score.barGridTicks || []) {
+        if (t <= start.tick) continue;
+        if (t >= end.tick) break;
+        events.push({
+          time: accumulateDuration(t, score.tempos), tick: t,
+          kind: critical ? 'critical_tick' : 'tick', noteID: -1,
+          lane: start.lane, width: start.width, critical, volume: seVolumeAtTick(t, score),
+          combo: true, auto: true,
+        });
       }
     }
     events.sort((a, b) => a.time - b.time || a.tick - b.tick);
@@ -226,10 +277,17 @@
     return {
       step,
       at(sec) {
-        if (sec <= 0) return table[0];
+        // Outside the table, extrapolate with the edge slope instead of
+        // clamping: the host player's clock starts at -1.6s (lead-in),
+        // and clamping froze the scaled time at 0, drawing the t=0 frame
+        // (notes that have not fallen yet) during the whole lead-in.
+        if (sec <= 0) return table[0] + (sec / step) * (table[1] - table[0]);
         const f = sec / step;
         const i = Math.floor(f);
-        if (i >= count - 1) return table[count - 1];
+        if (i >= count - 1) {
+          const slope = (table[count - 1] - table[count - 2]) / step;
+          return table[count - 1] + (sec - (count - 1) * step) * slope;
+        }
         return table[i] + (table[i + 1] - table[i]) * (f - i);
       },
     };
