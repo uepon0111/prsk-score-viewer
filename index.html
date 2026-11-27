@@ -4067,7 +4067,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
       drawKey = null; lastNow = -1;
       fx.setScore(score); fx.reset();
       hitEvents = null; seIdx = 0;
-      try { hitEvents = window.SekaiDraw.calculateHitEvents(score); } catch (e) { hitEvents = null; }
+      try { hitEvents = window.SekaiDraw.calculateHitEvents(score).filter(function (e) { return !e.auto; }); } catch (e) { hitEvents = null; }
     }
     var cfg = { noteSpeed: 6, mirror: false, holdAlpha: 1, guideAlpha: 1, ap: 0, sf: true, rate: 1, rk: 'all', skin: '01', seSet: '01', seVolume: 0.9, backgroundBrightness: 1 };
     var BASES = ['assets/', 'https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/assets/'];
@@ -4744,11 +4744,11 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
              /* ---- MMW/WebGL2 エンジン（ゲーム画面の高忠実度描画。読み込み失敗時は従来の Canvas 描画にフォールバック） ---- */
              let glEng=null,glState='idle';const glCanvas=$('ggl');
              const initGL=()=>{if(glState!=='idle')return;glState='loading';
-              try{glEng=MMW_ENG.create(glCanvas);if(!glEng){glState='failed';return}
+              try{glEng=MMW_ENG.create(glCanvas);if(!glEng){glState='failed';if(window.__ldE)__ldE();return}
                glEng.setJacket(D.jk);glEng.setScore(D.susText||'');
-               glEng.onReady=()=>{glState='ready';inv()};
-               glEng.onFail=()=>{glState='failed';inv()};
-              }catch(e){glState='failed'}};
+               glEng.onReady=()=>{glState='ready';if(window.__ldE)__ldE();inv()};
+               glEng.onFail=()=>{glState='failed';if(window.__ldE)__ldE();inv()};
+              }catch(e){glState='failed';if(window.__ldE)__ldE()}};initGL();
              const drawGame=()=>{if(glState==='idle')initGL();
               if(glState==='ready'&&glEng){glEng.setConfig({noteSpeed:spd,mirror:mir,holdAlpha:sl,guideAlpha:gd,ap:ap,sf:sf,rate:rate,rk:rk,skin:skin,seSet:seSet,seVolume:seVol,backgroundBrightness:bgB});
                glCanvas.style.display='block';gcv.style.display='none';bgc.style.display='none';
@@ -4872,7 +4872,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
               <div id="astat" class="hint" role="status"></div>
               <div class="hint">Space：再生/一時停止　←→：1秒（Shift で5秒）　↑↓：小節移動　Home：先頭　End：末尾　V：表示切り替え</div>
              </footer>
-             <script>window.__ldADone=false;window.__ldA=function(){if(window.__ldADone)return;window.__ldADone=true;var o=document.getElementById("ldOvP");if(o)o.hidden=true;};setTimeout(function(){window.__ldA();},45000);setInterval(function(){if(window.__ldADone)return;var a=document.getElementById("astat"),l=document.getElementById("ldSubP");if(a&&l&&a.textContent)l.textContent=a.textContent;},250);<\/script><script>const cubicPoint=${cubicPoint},cubicXAtY=${cubicXAtY};const MMW_ENG=${mmwFactory}();(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5]},1);<\/script></html>`);
+             <script>window.__ldA2=false;window.__ldE2=false;window.__ldHide=function(){if(window.__ldA2&&window.__ldE2){var o=document.getElementById("ldOvP");if(o)o.hidden=true;}};window.__ldA=function(){window.__ldA2=true;window.__ldHide();};window.__ldE=function(){window.__ldE2=true;window.__ldHide();};setTimeout(function(){window.__ldA2=true;window.__ldE2=true;window.__ldHide();},45000);setInterval(function(){if(window.__ldA2&&window.__ldE2)return;var a=document.getElementById("astat"),l=document.getElementById("ldSubP");if(a&&l&&a.textContent)l.textContent=a.textContent;},250);<\/script><script>const cubicPoint=${cubicPoint},cubicXAtY=${cubicXAtY};const MMW_ENG=${mmwFactory}();(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5]},1);<\/script></html>`);
              w.document.close();
             };
             /* ---------- 拡大表示・譜面再生：別タブを開かず、同じタブの全画面レイヤー（iframe）で表示する ----------
