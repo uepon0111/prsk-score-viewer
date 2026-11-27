@@ -316,10 +316,17 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
           if (!e || !r || i === refs[i]) continue;
           if (Math.abs(e.top - r.top) < 0.05 && Math.abs(e.bot - r.bot) < 0.05) continue;
           const s = NOTE_SPRITES[i];
-          cx.clearRect(s[0], s[1], s[2] - s[0], s[3] - s[1]);
-          cx.drawImage(img,
-            s[0], s[1] + e.top, s[2] - s[0], e.bot - e.top,
-            s[0], s[1] + r.top, s[2] - s[0], r.bot - r.top);
+          const w = s[2] - s[0], h = s[3] - s[1];
+          // Affine-map the WHOLE frame so the visible extent lands on the
+          // reference extent; the glow around the body is carried along
+          // and fades naturally instead of being cut off at the extent.
+          const k = (r.bot - r.top) / (e.bot - e.top);
+          const d0 = r.top - e.top * k;
+          cx.clearRect(s[0], s[1], w, h);
+          cx.save();
+          cx.beginPath(); cx.rect(s[0], s[1], w, h); cx.clip();
+          cx.drawImage(img, s[0], s[1], w, h, s[0], s[1] + d0, w, h * k);
+          cx.restore();
           changed = true;
         }
         return changed ? cv : img;
