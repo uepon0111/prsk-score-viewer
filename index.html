@@ -54,29 +54,6 @@
       .cbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:10px 0}
       #s-chart{display:flex;flex-direction:column;height:calc(100dvh - 80px);min-height:560px}#s-chart>.card{flex:none}#s-chart>#bk{align-self:flex-start;flex:none}#chart{flex:1;min-height:260px;overflow:auto;background:#111827;border-radius:12px;color:#c4d2e4}
       .msg{padding:30px}#chart img.sv{display:block;height:auto}
-      #p-settings h2{font-size:16px;margin:0 0 14px}
-      #p-settings h3{font-size:13px;margin:20px 0 14px;padding-bottom:6px;border-bottom:1px solid var(--ln)}
-      #p-settings h2+h3,#p-settings .psg h3{margin-top:0}
-      #p-settings p.mut{margin:8px 0 0}
-      .fld{margin-bottom:18px}.fld label{display:flex;justify-content:space-between;align-items:center;gap:12px;font-weight:700;margin-bottom:6px}
-      .fld label b{flex:none;min-width:3.6em;padding:1px 10px;border-radius:999px;background:var(--bg2);color:#13796d;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
-      .fld input[type=range]{-webkit-appearance:none;appearance:none;padding:0;height:26px;border:0;background:transparent;--p:50%}
-      .fld input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--acc) var(--p),var(--ln) var(--p))}
-      .fld input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--ln)}
-      .fld input[type=range]::-moz-range-progress{height:6px;border-radius:3px;background:var(--acc)}
-      .fld input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;margin-top:-7px;border-radius:50%;background:var(--acc);border:2px solid #fff;box-shadow:0 1px 4px #0004}
-      .fld input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--acc);border:2px solid #fff;box-shadow:0 1px 4px #0004}
-      .fld .mut{margin-top:4px}
-      .tag{margin-left:8px;padding:1px 8px;border-radius:999px;background:#e1f6f2;color:#13796d;font-size:11px;font-style:normal;font-weight:700;white-space:nowrap}
-      .fld.sw{padding:10px 12px;background:var(--bg2);border-radius:10px}.fld.sw label{margin:0;cursor:pointer}
-      .fld input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:44px;height:26px;margin:0;padding:0;border:0;border-radius:999px;background:#c3d0e4;cursor:pointer;transition:background .15s}
-      .fld input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .15s}
-      .fld input[type=checkbox]:checked{background:var(--acc)}.fld input[type=checkbox]:checked::after{transform:translateX(18px)}
-      @media(prefers-reduced-motion:reduce){.fld input[type=checkbox],.fld input[type=checkbox]::after{transition:none}}
-      #pv{overflow:auto;max-height:68vh;background:#111827;border-radius:10px}
-      #pv svg{display:block;margin:0 auto;max-width:100%;height:auto}
-      .psg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:0 32px}
-      .psg>div{min-width:0}
       #st{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;max-width:92vw;background:#27324aee;color:#fff;border-radius:10px;padding:8px 14px;font-size:12px}
             .lg{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,232px),1fr));gap:8px}
             .lgp{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:4px 6px;padding:6px 8px;background:#f4f8fd;border:1px solid var(--ln);border-radius:10px}
@@ -84,24 +61,6 @@
             .lgv{display:flex;align-items:center;justify-content:center;width:64px;height:52px;flex:none}
             .lgv svg{display:block;overflow:visible}
             .lgn{font-size:10px;line-height:1.3;color:var(--ink);word-break:keep-all;overflow-wrap:anywhere}
-      .msg:has(>.pgs){display:grid;place-items:center;min-height:100%;background:radial-gradient(60% 50% at 50% 45%,#2fbfae24,transparent 70%)}
-      .pgs{--v:0%;width:min(100%,380px);padding:22px 22px 18px;border-radius:20px;text-align:left;color:#dbe6f5;background:linear-gradient(160deg,#1d2c47,#141d31);border:1px solid #2d4163;box-shadow:0 18px 48px #0009,inset 0 1px 0 #ffffff14}
-      .pgh{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px}
-      .pgp{font-size:36px;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#fff}.pgp small{margin-left:2px;font-size:15px;color:#8ef0e2}
-      .pgn{padding:2px 10px;border-radius:999px;background:#2fbfae26;color:#8ef0e2;font-size:12px;font-weight:700;white-space:nowrap}
-      .pgb{position:relative;height:8px;border-radius:99px;background:#24344f;overflow:hidden}
-      .pgb i{position:absolute;inset:0 auto 0 0;width:var(--v);border-radius:inherit;overflow:hidden;background:linear-gradient(90deg,#2fbfae,#5eead4 50%,#8ab4ff);transition:width .7s cubic-bezier(.22,1,.36,1)}
-      .pgb i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffff70 50%,transparent 70%);transform:translateX(-100%);animation:pgsh 1.6s ease-in-out infinite}
-      .pgs ol{display:grid;grid-template-columns:repeat(4,1fr);margin:18px 0 0;padding:0;list-style:none}
-      .pgs li{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:#6f84a6;transition:color .3s}
-      .pgs li::before{content:"";position:absolute;top:8px;right:50%;width:100%;height:2px;background:#2a3b58;transition:background .4s}.pgs li:first-child::before{display:none}
-      .pgs li span{position:relative;z-index:1;width:18px;height:18px;border-radius:50%;background:#1a2740;border:2px solid #34496b;transition:background .3s,border-color .3s}
-      .pgs li.ok{color:#9fe8dc}.pgs li.ok::before,.pgs li.on::before{background:var(--acc)}.pgs li.ok span{background:var(--acc);border-color:var(--acc)}
-      .pgs li.ok span::after{content:"";position:absolute;left:4px;top:0;width:4px;height:8px;border:solid #0d2a27;border-width:0 2px 2px 0;transform:rotate(45deg)}
-      .pgs li.on{color:#fff;font-weight:700}.pgs li.on span{border-color:#5eead4;animation:pgr 1.4s ease-out infinite}
-      .pgt{margin:14px 0 0;min-height:2.9em;font-size:13px;line-height:1.5;color:#c4d2e4}
-      @keyframes pgsh{to{transform:translateX(100%)}}@keyframes pgr{0%{box-shadow:0 0 0 0 #5eead480}100%{box-shadow:0 0 0 9px #5eead400}}
-      @media(prefers-reduced-motion:reduce){.pgb i,.pgs li,.pgs li span,.pgs li::before{transition:none}.pgb i::after,.pgs li.on span{animation:none}}
       .kc-t .fld{margin-bottom:8px}
       .kc-act{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 0}
       button.kc-danger{background:#fde8ee;color:#b0213f}
@@ -123,26 +82,94 @@
       @keyframes kcsh{to{transform:translateX(100%)}}
       @media(prefers-reduced-motion:reduce){.kc-bar i,.kc-top i{transition:none}.kc-bar.run i::after{animation:none}}
       @media(max-width:480px){.kc-row{grid-template-columns:6.5em 1fr 7.5em}}
+
+      /* ===== 再設計：設定・進捗（明るい配色）／譜面を見る部分は暗い配色 ===== */
+      :root{--acc:#0b8579;--acc2:#2fbfae;--accs:#e2f5f2;--ink:#1d2740;--mut:#64718b;--ln:#dbe4f0;--bg2:#f3f7fc}
+      #p-settings .card{padding:18px;border-radius:16px;scroll-margin-top:112px}
+      #p-settings h2{margin:0 0 14px;font-size:17px;color:var(--ink)}
+      .snav{position:sticky;top:52px;z-index:15;display:flex;gap:8px;margin:0 -14px 12px;padding:10px 14px;overflow-x:auto;scrollbar-width:none;background:#f3f8fdee;backdrop-filter:blur(8px)}
+      .snav button{flex:none;padding:7px 14px;border:1px solid var(--ln);background:#fff;color:var(--ink);font-size:13px;border-radius:999px}
+      .snav button:hover{border-color:var(--acc2)}
+      .psg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:14px;margin-bottom:14px}
+      .psg>div{min-width:0;padding:16px 16px 6px;border:1px solid var(--ln);border-radius:14px;background:#fbfdff}
+      #p-settings h3{display:flex;align-items:center;gap:8px;margin:0 0 14px;padding:0;border:0;font-size:13px;color:var(--acc)}
+      #p-settings h3::before{content:"";flex:none;width:4px;height:14px;border-radius:2px;background:var(--acc2)}
+      #p-settings h2,#p-settings h3,.fld>label,.snav button{word-break:keep-all;overflow-wrap:anywhere;line-break:strict}
+      .fld{margin:0 0 18px}
+      .fld>label{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;margin:0 0 8px;font-weight:700;line-height:1.5}
+      .fld>label>span{flex:1 1 11em;min-width:0;text-wrap:balance}
+      .fld .mut{margin:8px 0 0;line-height:1.6;text-wrap:pretty}
+      .tag{display:inline-block;margin:0 0 0 6px;padding:1px 8px;border-radius:999px;background:var(--accs);color:var(--acc);font-size:11px;font-style:normal;font-weight:700;white-space:nowrap;vertical-align:1px}
+      .fld select{appearance:none;-webkit-appearance:none;padding:10px 36px 10px 12px;border-radius:10px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2364718b' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center/12px;font-weight:600;text-overflow:ellipsis}
+      .fld input[type=range]{-webkit-appearance:none;appearance:none;display:block;width:100%;height:28px;margin:0;padding:0;border:0;background:transparent;--p:50%}
+      .fld input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--acc2) var(--p),var(--ln) var(--p))}
+      .fld input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--ln)}
+      .fld input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--acc2)}
+      .fld input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:50%;background:#fff;border:3px solid var(--acc);box-shadow:0 2px 6px #1d27402e}
+      .fld input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--acc);box-shadow:0 2px 6px #1d27402e}
+      .fld.sw{padding:12px 14px;border:1px solid var(--ln);border-radius:12px;background:#fff}
+      .fld.sw>label{flex-wrap:nowrap;align-items:center;margin:0;cursor:pointer}.fld.sw>label>span{flex:1 1 auto}
+      .fld input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:48px;height:28px;margin:0;padding:0;border:0;border-radius:999px;background:#c5d1e3;cursor:pointer;transition:background .15s}
+      .fld input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .15s}
+      .fld input[type=checkbox]:checked{background:var(--acc)}.fld input[type=checkbox]:checked::after{transform:translateX(20px)}
+      #p-settings .card>p.mut{margin:10px 0 0;padding-left:10px;border-left:3px solid var(--ln);line-height:1.6;text-wrap:pretty}
+      #p-settings .card>button{margin-top:2px}
+      #pv{overflow:auto;max-height:68vh;padding:8px;background:#111827;border-radius:12px}#pv svg{display:block;margin:0 auto;max-width:100%;height:auto}
+      .kc-box{background:#fff;border-radius:14px}.kc-hd{flex-wrap:wrap}.kc-bar{height:12px}.kc-bar.run i::after{animation-duration:1.4s}
+      .kc-row{grid-template-columns:minmax(5.5em,auto) minmax(3em,1fr) auto}.kc-row b{white-space:nowrap}.kc-act button{flex:1 1 9rem}
+      /* 譜面データ取得の進捗（暗い配色：譜面表示エリア内） */
+      @property --v{syntax:'<percentage>';inherits:true;initial-value:0%}
+      .msg:has(>.pgs){display:grid;place-items:center;min-height:100%;padding:16px;background:radial-gradient(70% 55% at 50% 40%,#2fbfae1f,transparent 70%)}
+      .pgs{--v:0%;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto auto;gap:4px 18px;align-items:center;width:min(100%,420px);padding:20px;border-radius:20px;text-align:left;color:#dbe6f5;background:#18263a;border:1px solid #2d4163;box-shadow:0 18px 48px #0007;transition:--v .7s cubic-bezier(.22,1,.36,1)}
+      .pgh{display:contents}
+      .pgp{position:relative;grid-area:1/1/3/2;display:grid;place-items:center;width:92px;height:92px;border-radius:50%;background:conic-gradient(#5eead4 var(--v),#2a3b58 0);font-size:26px;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#fff}
+      .pgp::before{content:"";position:absolute;inset:8px;border-radius:50%;background:#18263a}
+      .pgp>*{position:relative}.pgp small{margin-left:1px;font-size:12px;color:#8ef0e2}
+      .pgn{grid-area:1/2;align-self:end;justify-self:start;font-size:16px;font-weight:800;color:#fff;white-space:nowrap}
+      .pgt{grid-area:2/2;align-self:start;margin:0;font-size:13px;line-height:1.55;color:#b9c8dc;text-wrap:pretty}
+      .pgb{grid-area:3/1/4/3;position:relative;height:8px;margin-top:10px;border-radius:99px;background:#26364d;overflow:hidden}
+      .pgb i{position:absolute;inset:0 auto 0 0;width:var(--v);border-radius:inherit;overflow:hidden;background:linear-gradient(90deg,#2fbfae,#5eead4 55%,#8ab4ff)}
+      .pgb i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffff70 50%,transparent 70%);transform:translateX(-100%);animation:pgsh 1.6s ease-in-out infinite}
+      .pgs ol{grid-area:4/1/5/3;display:grid;grid-template-columns:repeat(4,1fr);margin:12px 0 0;padding:0;list-style:none}
+      .pgs li{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:#7d90ae;transition:color .3s}
+      .pgs li::before{content:"";position:absolute;top:8px;right:50%;width:100%;height:2px;background:#2a3b58;transition:background .4s}.pgs li:first-child::before{display:none}
+      .pgs li span{position:relative;z-index:1;width:18px;height:18px;border-radius:50%;background:#18263a;border:2px solid #3a5073;transition:background .3s,border-color .3s}
+      .pgs li.ok{color:#9fe8dc}.pgs li.ok::before,.pgs li.on::before{background:var(--acc2)}.pgs li.ok span{background:var(--acc2);border-color:var(--acc2)}
+      .pgs li.ok span::after{content:"";position:absolute;left:4px;top:0;width:4px;height:8px;border:solid #0d2a27;border-width:0 2px 2px 0;transform:rotate(45deg)}
+      .pgs li.on{color:#fff;font-weight:700}.pgs li.on span{border-color:#5eead4;animation:pgr 1.4s ease-out infinite}
+      @keyframes pgsh{to{transform:translateX(100%)}}@keyframes pgr{0%{box-shadow:0 0 0 0 #5eead480}100%{box-shadow:0 0 0 9px #5eead400}}
+      @media(max-width:340px){.pgs{grid-template-columns:1fr;justify-items:center;text-align:center}.pgp{grid-area:auto}.pgn,.pgt{grid-area:auto;justify-self:center}.pgb,.pgs ol{grid-area:auto;justify-self:stretch}}
+      @media(prefers-reduced-motion:reduce){.pgs,.pgs li,.pgs li span,.pgs li::before{transition:none}.pgb i::after,.pgs li.on span{animation:none}}
+      .msg.err{display:grid;justify-items:center;gap:10px;padding:40px 20px;text-align:center;color:#c4d2e4}.msg.err b{font-size:16px;color:#fff}.msg.err p{margin:0;max-width:30em;text-wrap:pretty}.msg.err button{background:var(--acc2);color:#082b27}
     </style>
   </head>
   <body>
-    <div id="ldOv" role="status" aria-label="読み込み中">
+    <div id="ldOv" role="status" aria-live="polite" aria-label="読み込み中">
       <div class="ldCard">
-        <div class="ldTitle">♪ プロセカ 譜面ビューア</div>
-        <div class="ldMsg">読み込み中…</div>
+        <div class="ldMark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div class="ldTitle">プロセカ 譜面ビューア</div>
+        <div class="ldMsg">楽曲データを読み込んでいます</div>
         <div class="ldBarWrap"><i id="ldBar"></i></div>
         <div class="ldSub"><span id="ldLab">楽曲データを取得しています</span><span id="ldPct">0%</span></div>
+        <button id="ldRetry" class="ldRt" type="button" hidden onclick="location.reload()">再読み込み</button>
       </div>
     </div>
     <style>
-      #ldOv{position:fixed;inset:0;z-index:300;background:#101827;color:#e5edf7;display:flex;align-items:center;justify-content:center;font:14px system-ui,"Hiragino Sans","Noto Sans JP",sans-serif}
+      #ldOv{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;background:linear-gradient(135deg,#eaf7ff,#fff3fa);color:#1d2740;font:14px system-ui,"Hiragino Sans","Noto Sans JP",sans-serif}
       #ldOv[hidden]{display:none}
-      #ldOv .ldCard{width:min(420px,86vw);text-align:center}
-      #ldOv .ldTitle{font-size:17px;font-weight:700;margin-bottom:14px}
-      #ldOv .ldMsg{font-size:14px;margin-bottom:12px}
-      #ldOv .ldBarWrap{height:10px;border-radius:999px;background:#26364d;overflow:hidden}
-      #ldOv .ldBarWrap i{display:block;height:100%;width:0%;border-radius:999px;background:#2fbfae;transition:width .3s ease}
-      #ldOv .ldSub{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#9db4cc}
+      #ldOv .ldCard{width:min(380px,100%);padding:28px 24px 22px;text-align:center;background:#fff;border:1px solid #dbe4f0;border-radius:20px;box-shadow:0 12px 40px #6aa0d026}
+      #ldOv .ldMark{display:flex;justify-content:center;align-items:flex-end;gap:5px;height:34px;margin-bottom:14px}
+      #ldOv .ldMark i{width:7px;height:100%;border-radius:4px;background:#2fbfae;transform-origin:bottom;animation:ldEq 1s ease-in-out infinite}
+      #ldOv .ldMark i:nth-child(2){background:#8ab4ff;animation-delay:-.25s}#ldOv .ldMark i:nth-child(3){background:#f59bb0;animation-delay:-.5s}#ldOv .ldMark i:nth-child(4){animation-delay:-.75s}
+      @keyframes ldEq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+      #ldOv .ldTitle{margin-bottom:4px;font-size:17px;font-weight:700}
+      #ldOv .ldMsg{margin-bottom:16px;font-size:13px;color:#64718b}
+      #ldOv .ldBarWrap{height:8px;border-radius:999px;background:#e4ecf6;overflow:hidden}
+      #ldOv .ldBarWrap i{display:block;height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#2fbfae,#5eead4);transition:width .4s ease}
+      #ldOv .ldSub{display:flex;justify-content:space-between;gap:12px;margin-top:10px;font-size:12px;color:#64718b;text-align:left}
+      #ldOv .ldSub #ldPct{flex:none;font-weight:700;font-variant-numeric:tabular-nums;color:#0b8579}
+      #ldOv .ldRt{margin-top:16px;padding:9px 18px;border:0;border-radius:10px;background:#0b8579;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+      @media(prefers-reduced-motion:reduce){#ldOv .ldMark i{animation:none;transform:scaleY(.7)}#ldOv .ldBarWrap i{transition:none}}
       body.ld main,body.ld header.top,body.ld #nav,body.ld #scrim{visibility:hidden}
     </style>
     <script>
@@ -150,7 +177,7 @@
       window.__ldN=0;window.__ldT=3;
       window.__ldStep=function(lab){window.__ldN=Math.min(window.__ldT,window.__ldN+1);var p=Math.round(window.__ldN/window.__ldT*100);var b=document.getElementById('ldBar'),t=document.getElementById('ldPct'),l=document.getElementById('ldLab');if(b)b.style.width=p+'%';if(t)t.textContent=p+'%';if(l&&lab)l.textContent=lab+'を取得しました';};
       window.__ldDone=function(){var o=document.getElementById('ldOv');if(o)o.hidden=true;document.body.classList.remove('ld');};
-      window.__ldFail=function(){var l=document.getElementById('ldLab');if(l)l.textContent='取得に失敗しました';var m=document.querySelector('#ldOv .ldMsg');if(m)m.textContent='楽曲データを取得できません。通信状況を確認して再読み込みしてください';};
+      window.__ldFail=function(){var r=document.getElementById('ldRetry');if(r)r.hidden=false;var k=document.querySelector('#ldOv .ldMark');if(k)k.style.display='none';var l=document.getElementById('ldLab');if(l)l.textContent='取得に失敗しました';var m=document.querySelector('#ldOv .ldMsg');if(m)m.textContent='楽曲データを取得できません。通信状況を確認して再読み込みしてください';};
     </script>
     <header class="top">
       <button id="menu" aria-label="メニューを開く" aria-expanded="false" aria-controls="nav">☰</button>
@@ -239,7 +266,8 @@
         </div>
       </section>
       <section id="p-settings" class="pg" hidden="">
-        <div class="card">
+        <nav class="snav" aria-label="設定の項目"><button type="button" data-go="c-view">表示</button><button type="button" data-go="c-play">譜面再生</button><button type="button" data-go="kc">オフライン保存</button></nav>
+        <div class="card" id="c-view">
           <h2>表示の設定</h2>
           <div class="psg">
             <div>
@@ -302,7 +330,7 @@
             実際の譜面と同じ描画です。ノーツ間隔や小節数の設定にかかわらず、最小のノーツ間隔で1小節だけ表示します。透明度・ミラーの変更はすぐに反映されます。
           </p>
         </div>
-        <div class="card pset">
+        <div class="card pset" id="c-play">
           <h2>譜面再生の設定</h2>
           <div class="psg">
             <div>
@@ -1037,20 +1065,21 @@
             const DN={easy:'EASY',normal:'NORMAL',hard:'HARD',expert:'EXPERT',master:'MASTER',append:'APPEND'};
             const UNITS=[['all','すべてのユニット'],['vocaloid','VIRTUAL SINGER'],['light_music_club','Leo/need'],['idol','MORE MORE JUMP!'],['street','Vivid BAD SQUAD'],['theme_park','ワンダーランズ×ショウタイム'],['school_refusal','25時、ナイトコードで。'],['other','その他']];
             function stepperInit(spec,dark){
-              var d=document,c=dark?{b:'#2a3d57',t:'#e5edf7',v:'#0f1a2b',vt:'#8ef0e2',s:'0 1px 3px #0009',o:'#344b66'}:{b:'#f4f8fd',t:'#27324a',v:'#dde8f6',vt:'#27324a',s:'0 1px 4px #27324a33',o:'#dde8f6'},st=d.createElement('style');
-              st.textContent='.stp{display:flex;gap:6px;justify-content:center;align-items:stretch;margin-top:4px}'
-                +'.stp button{flex:1 1 0;min-width:0;max-width:64px;height:42px;padding:0;border:1px solid '+c.o+';border-radius:10px;background:'+c.b+';color:'+c.t+';font-family:inherit;font-size:15px;font-weight:800;line-height:1;box-shadow:'+c.s+';cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}'
-                +'.stp button.sm{font-size:12px}.stp button.xs{font-size:10px}'
-                +'.stp button:active{transform:translateY(1px);box-shadow:none}.stp button:disabled{opacity:.35;cursor:default;transform:none}'
-                +'.stp b,.stp .value{flex:1.7 1 0;min-width:0;max-width:104px;display:flex;align-items:center;justify-content:center;padding:0 2px;border-radius:10px;background:'+c.v+';color:'+c.vt+';font-size:15px;font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}';
+              var d=document,c=dark?{b:'#142033',t:'#e5edf7',v:'#0f1a2b',vt:'#8ef0e2',o:'#344b66',h:'#22344d'}:{b:'#fff',t:'#1d2740',v:'#eef4fb',vt:'#0b6f64',o:'#d3deed',h:'#e8f1fb'},st=d.createElement('style');
+              st.textContent='.stp{display:flex;margin-top:8px;border:1px solid '+c.o+';border-radius:12px;overflow:hidden;background:'+c.b+'}'
+                +'.stp button{flex:1 1 0;min-width:0;height:40px;padding:0;border:0;border-right:1px solid '+c.o+';border-radius:0;background:transparent;color:'+c.t+';font:inherit;font-size:14px;font-weight:700;line-height:1;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}'
+                +'.stp button.sm{font-size:12px}.stp button.xs{font-size:11px}'
+                +'.stp button:active:not(:disabled){background:'+c.h+'}.stp button:disabled{opacity:.35;cursor:default}'
+                +'.stp b,.stp .value{flex:1.7 1 0;min-width:0;display:flex;align-items:center;justify-content:center;padding:0 4px;border-right:1px solid '+c.o+';background:'+c.v+';color:'+c.vt+';font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}'
+                +'.stp>:last-child{border-right:0}';
               d.head.appendChild(st);
               Object.keys(spec).forEach(function(id){
                 var inp=d.getElementById(id),lab=d.querySelector('label[for="'+id+'"]');
                 if(!inp||!lab)return;
-                var ds=spec[id],mn=+inp.min,mx=+inp.max,bs=[],row=d.createElement('div'),val=lab.querySelector('b,.value')||d.createElement('b'),n=lab.firstChild,name,
+                var ds=spec[id],mn=+inp.min,mx=+inp.max,bs=[],row=d.createElement('div'),val=lab.querySelector('b,.value')||d.createElement('b'),cl=lab.cloneNode(true),name,
                   dec=Math.max.apply(null,ds.map(function(x){return (String(x).split('.')[1]||'').length}));
-                if(n&&n.nodeType===1)n=n.firstChild;
-                name=n?n.textContent.trim():'';
+                cl.querySelectorAll('b,.value,.tag').forEach(function(x){x.remove()});
+                name=cl.textContent.replace(/\u200b/g,'').trim();
                 var upd=function(){var v=+inp.value;bs.forEach(function(x){x[0].disabled=x[1]<0?v<=mn:v>=mx})};
                 var mk=function(x){
                   var b=d.createElement('button'),t=(x<0?'\u2212':'+')+Math.abs(x);
@@ -1061,9 +1090,9 @@
                 ds.slice().reverse().forEach(function(x){row.appendChild(mk(-x))});
                 row.appendChild(val);
                 ds.forEach(function(x){row.appendChild(mk(x))});
-                inp.style.display='none';inp.parentNode.insertBefore(row,inp.nextSibling);
+                inp.parentNode.insertBefore(row,inp.nextSibling); /* スライダーは残し、−/＋ボタンで細かく調整できる */
                 new MutationObserver(upd).observe(val,{childList:true,characterData:true,subtree:true});
-                upd();
+                inp.addEventListener('input',upd);upd();
               });
             }
             const PREF_KEY='sekaiChartViewer.settings.v1',DEF={zm:200,bpc:8,sl:100,gd:40,mirror:false},BPCS=[4,6,8,12,16,24,32];
@@ -1202,12 +1231,12 @@
             };
             function drawChart(){
               try{const S=parseSUS(sus),R=render(S,cfg.zm,cfg.bpc,0,0,vs());$('#chart').innerHTML=R.svg;lastR=R;dirty=false;toFirst();const o=diffs[cur.id][curD];lastName=cur.title+'_'+curD;songLabel=`${cur.title}-${curD.toUpperCase()} Lv${o.playLevel}`;const sj=cur;songInfo={get jk(){return(IMG.done.get(jacket(sj))||{}).src||jacket(sj)},id:cur.id,fs:cur.fillerSec||0,title:cur.title,diff:curD,level:o.playLevel};st('')}
-              catch(e){st('解析エラー: '+e.message);console.error(e);if($('#pg'))$('#chart').innerHTML='<div class="msg">譜面を表示できませんでした（'+esc(e.message)+'）</div>'}
+              catch(e){st('解析エラー: '+e.message);console.error(e);if($('#pg'))$('#chart').innerHTML='<div class="msg err" role="alert"><b>譜面を表示できませんでした</b><p>'+esc(e.message)+'</p></div>'}
             }
             function showSVG(c,my){
               c=[...new Set(c.filter(Boolean))];let i=0;
               const next=()=>{if(my!==rid)return;const u=c[i++];
-                if(!u){$('#chart').innerHTML='<div class="msg">譜面を取得できませんでした。通信状況を確認するか、別の難易度でお試しください。</div>';st('');key='';return}
+                if(!u){$('#chart').innerHTML='<div class="msg err" role="alert"><b>譜面を取得できませんでした</b><p>通信状況を確認するか、別の難易度でお試しください。</p><button id="rtry" type="button">もう一度試す</button></div>';$('#rtry').onclick=loadChart;st('');key='';return}
                 if(i>1)prog(1,`生成済みの譜面画像を取得しています（${i}/${c.length}）`);
                 const im=new Image();im.className='sv';im.alt='譜面';im.referrerPolicy='no-referrer';
                 im.onload=()=>{if(my!==rid)return;$('#chart').replaceChildren(im);st('生成済みの譜面画像を表示中（この表示では設定の反映・画像保存・拡大表示は使えません）');toFirst()};
@@ -5160,39 +5189,17 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
               .song{display:flex;align-items:center;gap:10px;flex:1 1 0;min-width:0}.song img{width:44px;height:44px;border-radius:8px;flex:none;background:#26364d;box-shadow:0 2px 6px #0006}.song div{min-width:0}.song b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:15px;line-height:1.35;word-break:break-word}.lv{display:inline-block;margin-top:2px;border-radius:999px;padding:1px 10px;font-size:12px;font-weight:700;color:#fff}.tools{flex:none;display:flex;gap:8px}#tg[aria-expanded=true]{background:#58d7c4;color:#102033}@media(max-width:560px){header{gap:8px;padding:6px 8px}.song{gap:8px}.song img{width:38px;height:38px}.song b{font-size:13px}.tools{gap:6px}.tools button{padding:7px 9px;font-size:12px}.wd{display:none}}@media(max-width:430px){header{flex-wrap:wrap}.song,.tools{flex:1 1 100%}.tools button{flex:1 1 0;padding:7px 4px}}
               button{border:0;border-radius:7px;padding:8px 12px;background:#2fbfae;color:#102033;font:inherit;font-weight:700;cursor:pointer}button.g{background:#2a3d57;color:#e5edf7}button:hover{filter:brightness(1.1)}
               button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8ef0e2;outline-offset:2px}
-              #panel{flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,360px));justify-content:center;gap:12px 24px;padding:10px 14px 12px;background:#1d2c42;border-bottom:1px solid #344b66;max-height:50vh;max-height:50dvh;overflow-y:auto}#panel[hidden]{display:none}
-              .control{min-width:0;display:flex;flex-direction:column;gap:5px}.control.wide{grid-column:1/-1}.control>:last-child{margin:auto 0 0}
-              .cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;line-height:1.35;color:#c4d2e4}.cap b{color:#8ef0e2;font-variant-numeric:tabular-nums;white-space:nowrap}
-              .control input[type=range]{display:block;width:100%;height:30px;accent-color:#58d7c4}
-              .chk{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid #344b66;border-radius:6px;background:#0f1a2b;font-size:13px;color:#e5edf7;cursor:pointer;user-select:none}.chk:has(input:checked){border-color:#58d7c4}.chk input{width:16px;height:16px;margin:0;accent-color:#58d7c4}
               #wrap{flex:1;min-height:0;position:relative;background:#111827}#stage{display:block;width:100%;height:100%}#gbg,#gview{display:none;position:absolute;left:0;top:0;width:100%;height:100%}#ggl{display:none;position:absolute;left:0;top:0;width:100%;height:100%}#ldOvP{position:fixed;inset:0;z-index:120;background:#101827;color:#e5edf7;display:flex;align-items:center;justify-content:center}#ldOvP[hidden]{display:none}#ldOvP .ldCard{width:min(420px,86vw);text-align:center}#ldOvP .ldMsg{font-size:14px;margin-bottom:12px}#ldOvP .ldBarWrap{height:10px;border-radius:999px;background:#26364d;overflow:hidden}#ldOvP .ldBarWrap i{display:block;height:100%;width:40%;border-radius:999px;background:#2fbfae;animation:ldSlide 1.2s ease-in-out infinite alternate}@keyframes ldSlide{from{transform:translateX(-60%)}to{transform:translateX(220%)}}#ldOvP .ldSub{margin-top:8px;font-size:12px;color:#9db4cc;min-height:1em}
               .hud{position:absolute;left:10px;top:8px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}.hud span{background:#0b1220cc;border:1px solid #344b66;border-radius:8px;padding:2px 10px;font-weight:700;font-variant-numeric:tabular-nums}
               footer{flex:none;display:flex;flex-direction:column;gap:8px;padding:8px 12px 10px;background:#18263a;border-top:1px solid #344b66}
               .tl{display:flex;align-items:center;gap:10px}.tl input{flex:1;min-width:0;accent-color:#58d7c4}.tl span{min-width:4.4em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
               .ctl{display:grid;grid-template-columns:1fr 1fr 1.25fr 1fr;gap:6px;width:100%;max-width:560px;margin:0 auto}.ctl button{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;font-size:clamp(11px,2.9vw,13px);line-height:1.2;white-space:nowrap}.ctl button b{font-size:1.25em;line-height:1}.ctl label{display:flex;align-items:center;gap:6px;color:#c4d2e4;font-size:12px}.ctl input[type=range]{width:120px;accent-color:#58d7c4}.ctl select,.control select{background:#0f1a2b;color:#e5edf7;border:1px solid #344b66;border-radius:6px;padding:5px 6px;font:inherit}.control select{width:100%;height:30px;padding-top:0;padding-bottom:0;text-overflow:ellipsis}
               .sp{flex:1}.hint{font-size:11px;color:#91a6bf}#astat{text-align:center}#astat:empty{display:none}
-             </style>
+              </style><style>${DKCSS}</style>
              <header>${songHTML}<div class="tools"><button id="bkL" class="g" onclick="parent.__closeLayer&&parent.__closeLayer()">‹ 戻る</button><button id="tg" class="g" aria-expanded="false" aria-controls="panel">表示設定</button></div></header>
-             <section id="panel" aria-label="表示設定" hidden>
-              <div class="control wide"><label class="cap" for="rate">再生速度 <b id="ratev"></b></label><input id="rate" type="range" min="0.25" max="1" step="0.01"></div>
-              <div class="control wide"><label class="cap" for="vocal">ボーカル</label><select id="vocal" disabled><option>読み込み中…</option></select></div>
-              <div class="control"><label class="cap" for="vol">音量 <b id="volv"></b></label><input id="vol" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="ao">音源のタイミング補正（＋で音が早く／−で遅く） <b id="aov"></b></label><input id="ao" type="range" min="-3" max="3" step="0.01"></div>
-              <div class="control"><label class="cap" for="spd">ノーツ速度 <b id="spdv"></b></label><input id="spd" type="range" min="1" max="12" step=".01"></div>
-              <div class="control"><label class="cap" for="rk">再生速度を変えたとき</label><select id="rk"><option value="all">全体が変化（ノーツ速度も変わる）</option><option value="keep">ノーツ速度はそのまま</option></select></div>
-              <div class="control wide"><label class="cap" for="ap">ノーツ表示開始位置（レーン奥から） <b id="apv"></b></label><input id="ap" type="range" min="0" max="100" step="1"></div>
-              <div class="control"><span class="cap">ミラー</span><label class="chk"><input id="mir" type="checkbox"> 左右反転</label></div>
-              <div class="control"><span class="cap">ソフラン（速度変化）</span><label class="chk"><input id="sf" type="checkbox"> ソフランなし</label></div>
-              <div class="control"><label class="cap" for="slO">スライドノーツ透明度 <b id="slv"></b></label><input id="slO" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="gdO">ガイドノーツ透明度 <b id="gdv"></b></label><input id="gdO" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="skin">ノーツの見た目</label><select id="skin"><option value="01">スキン 01</option><option value="02">スキン 02</option></select></div>
-              <div class="control"><label class="cap" for="seSet">ノーツの音</label><select id="seSet"><option value="01">サウンド 01</option><option value="02">サウンド 02</option><option value="off">オフ</option></select></div>
-              <div class="control"><label class="cap" for="seVol">ノーツ音の音量 <b id="sevolv"></b></label><input id="seVol" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="bgB">背景の明るさ <b id="bgbv"></b></label><input id="bgB" type="range" min="20" max="150" step="5"></div>
-              <div class="control"><label class="cap" for="fxq">エフェクトの強さ</label><select id="fxq"><option value="0">強い（通常）</option><option value="1">弱い（低特效）</option></select></div>
-             </section>
              <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}${window.__NSP&&window.__NSP.ready?window.__NSP.defs:''}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
-              <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
+              <section id="panel" role="dialog" aria-label="表示設定" hidden><div class="ph"><b>表示設定</b><button type="button" class="g" onclick="document.getElementById('tg').click()">閉じる</button></div><div class="pb"><section class="grp"><h3>再生</h3><div class="gc"><div class="control"><label class="cap" for="rate"><span>再生速度</span><b id="ratev"></b></label><input id="rate" type="range" min="0.25" max="1" step="0.01"></div><div class="control"><label class="cap" for="rk"><span>再生速度を変えたとき</span></label><select id="rk"><option value="all">全体が変化（ノーツ速度も変わる）</option><option value="keep">ノーツ速度はそのまま</option></select></div></div></section><section class="grp"><h3>音声</h3><div class="gc"><div class="control"><label class="cap" for="vocal"><span>ボーカル</span></label><select id="vocal" disabled><option value="">読み込み中…</option></select></div><div class="control"><label class="cap" for="vol"><span>音量</span><b id="volv"></b></label><input id="vol" type="range" min="0" max="100"></div><div class="control"><label class="cap" for="ao"><span>音源のタイミング補正</span><b id="aov"></b></label><input id="ao" type="range" min="-3" max="3" step="0.01"><span class="note">＋で音が早く、−で遅くなります</span></div><div class="control"><label class="cap" for="seSet"><span>ノーツの音</span></label><select id="seSet"><option value="01">サウンド 01</option><option value="02">サウンド 02</option><option value="off">オフ</option></select></div><div class="control"><label class="cap" for="seVol"><span>ノーツ音の音量</span><b id="sevolv"></b></label><input id="seVol" type="range" min="0" max="100"></div></div></section><section class="grp"><h3>ノーツ</h3><div class="gc"><div class="control"><label class="cap" for="spd"><span>ノーツ速度</span><b id="spdv"></b></label><input id="spd" type="range" min="1" max="12" step=".01"></div><div class="control"><label class="cap" for="ap"><span>ノーツ表示開始位置（レーン奥から）</span><b id="apv"></b></label><input id="ap" type="range" min="0" max="100" step="1"></div><div class="control"><label class="cap" for="slO"><span>スライドノーツ透明度</span><b id="slv"></b></label><input id="slO" type="range" min="0" max="100"></div><div class="control"><label class="cap" for="gdO"><span>ガイドノーツ透明度</span><b id="gdv"></b></label><input id="gdO" type="range" min="0" max="100"></div><div class="control"><span class="cap"><span>ミラー</span></span><label class="sw"><span>左右反転</span><input id="mir" type="checkbox"></label></div><div class="control"><span class="cap"><span>ソフラン（速度変化）</span></span><label class="sw"><span>ソフランなし</span><input id="sf" type="checkbox"></label></div><div class="control"><label class="cap" for="skin"><span>ノーツの見た目</span></label><select id="skin"><option value="01">スキン 01</option><option value="02">スキン 02</option></select></div></div></section><section class="grp"><h3>画面</h3><div class="gc"><div class="control"><label class="cap" for="bgB"><span>背景の明るさ</span><b id="bgbv"></b></label><input id="bgB" type="range" min="20" max="150" step="5"></div><div class="control"><label class="cap" for="fxq"><span>エフェクトの強さ</span></label><select id="fxq"><option value="0">強い（通常）</option><option value="1">弱い（低特效）</option></select></div></div></section></div></section><div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
+              <script>(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5],seVol:[5],bgB:[5]},1);(${PW})(document.body);<\/script>
              <footer>
               <div class="tl"><span id="tcur">0:00.0</span><input id="seek" type="range" aria-label="再生位置"><span id="tend"></span></div>
               <div class="ctl">
@@ -5208,7 +5215,32 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
             };
             /* ---------- 拡大表示・譜面再生：別タブを開かず、同じタブの全画面レイヤー（iframe）で表示する ----------
                開く時に履歴を1つ積む（URLは変えない）ので、ブラウザの「戻る」でもレイヤーが閉じて元の画面に戻る。 */
-            let LY=null,lyY=0,lyP=false;
+            const DKCSS=`/* 譜面を見る画面（拡大表示・譜面再生）の設定パネル：暗い配色 */
+#panel{position:absolute;z-index:40;top:10px;right:10px;width:min(28rem,calc(100% - 20px));max-height:calc(100% - 20px);display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;background:#16233af2;border:1px solid #30465f;border-radius:16px;box-shadow:0 18px 50px #000a;backdrop-filter:blur(12px)}
+#panel[hidden]{display:none}
+.ph{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px 10px 16px;border-bottom:1px solid #30465f}.ph b{font-size:15px}.ph button{padding:6px 14px;font-size:13px}
+.pb{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 16px 16px}
+.grp{margin-top:16px}.grp h3{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:12px;font-weight:700;color:#8ef0e2}.grp h3::after{content:"";flex:1;height:1px;background:#30465f}
+.gc{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13.5rem),1fr));gap:16px}
+.control{min-width:0;display:flex;flex-direction:column;gap:6px}
+.control,.grp h3,.cap,.ph b{word-break:keep-all;overflow-wrap:anywhere;line-break:strict}
+.cap{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;font-size:12.5px;font-weight:700;line-height:1.45;color:#dbe6f5}
+.cap>span{flex:1 1 8em;min-width:0;text-wrap:balance}.cap .value,.cap b{flex:none;color:#8ef0e2;font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{font-size:11.5px;line-height:1.5;color:#9db0c8;text-wrap:pretty}
+.control input[type=range]{display:block;width:100%;height:30px;margin:0;accent-color:#58d7c4}
+.control select{appearance:none;-webkit-appearance:none;width:100%;height:42px;padding:0 34px 0 12px;border:1px solid #344b66;border-radius:10px;background:#0f1a2b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239db0c8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center/12px;color:#e5edf7;font:inherit;font-weight:600;text-overflow:ellipsis}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;padding:6px 12px;border:1px solid #344b66;border-radius:10px;background:#0f1a2b;font-size:13px;font-weight:600;cursor:pointer;user-select:none}.sw:has(input:checked){border-color:#58d7c4}
+.sw input{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:46px;height:26px;margin:0;border-radius:999px;background:#3a5073;cursor:pointer;transition:background .15s}
+.sw input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}.sw input:checked{background:#58d7c4}.sw input:checked::after{transform:translateX(20px)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}.btns button{flex:1 1 8rem;white-space:nowrap}
+#stageBox{flex:1;min-height:0;position:relative;display:flex}#stageBox>#chartBox{flex:1;min-width:0}
+#ldOvP .ldCard{padding:22px;border:1px solid #30465f;border-radius:18px;background:#16233a;box-shadow:0 18px 50px #000a}
+#ldOvP .ldMsg{margin-bottom:14px;font-size:15px;font-weight:700}#ldOvP .ldBarWrap i{background:linear-gradient(90deg,#2fbfae,#8ab4ff)}
+#ldOvP .ldSub{margin-top:12px;font-size:12.5px;line-height:1.5;color:#b3c3d8;text-wrap:pretty}
+@media(max-width:640px){#panel{top:8px;right:8px;left:8px;width:auto;max-height:calc(100% - 16px)}}
+@media(prefers-reduced-motion:reduce){.sw input,.sw input::after{transition:none}}`;
+             function PW(r){const w=document.createTreeWalker(r,4),a=[];for(let n;n=w.nextNode();)a.push(n);a.forEach(n=>{const t=n.nodeValue;if(t.includes('\u200b')||!n.parentNode.closest('label,h2,h3,.cap,.snav'))return;const h=t.replace(/[、。）」』】](?=.)|[のをにでとはがもへや](?=[ァ-ヶ一-龠])|(?=[（「『【])/g,m=>m+'\u200b');if(h!==t)n.nodeValue=h})} /* ラベルを語のまとまりで改行：句読点・助詞のあと・（の前に改行位置を入れる */
+             let LY=null,lyY=0,lyP=false;
             function openLayer(){
              if(LY)return null;
              const box=document.createElement('div'),fr=document.createElement('iframe');
@@ -5261,22 +5293,11 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
                 .tools{flex:none;display:flex;gap:8px}.btns{display:flex;flex-wrap:nowrap;gap:8px}.btns button{min-width:0;white-space:nowrap}
                 button{border:0;border-radius:7px;padding:7px 11px;background:#2fbfae;color:#102033;font:inherit;font-weight:700;cursor:pointer}button.g{background:#2a3d57;color:#e5edf7}button:hover{filter:brightness(1.1)}
                 button:focus-visible,input:focus-visible{outline:3px solid #8ef0e2;outline-offset:2px}
-                #panel{flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,360px));justify-content:center;gap:12px 28px;padding:12px 16px 14px;background:#1d2c42;border-bottom:1px solid #344b66;max-height:50vh;max-height:50dvh;overflow-y:auto}#panel[hidden]{display:none}
-                .control{min-width:0;display:flex;flex-direction:column;gap:5px}.cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;line-height:1.35;color:#c4d2e4}.value{color:#8ef0e2;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-                .control input[type=range]{display:block;width:100%;height:30px;margin:0;accent-color:#58d7c4}
-                .chk{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid #344b66;border-radius:6px;background:#0f1a2b;font-size:13px;color:#e5edf7;cursor:pointer;user-select:none}.chk:has(input:checked){border-color:#58d7c4}.chk input{width:16px;height:16px;margin:0;accent-color:#58d7c4}
                 #chartBox{flex:1;min-height:0;overflow:auto;padding:12px;background:#111827}#chartBox svg{display:block;max-width:none;height:auto}.hint{font-size:10px;color:#91a6bf}
                 @media(max-width:560px){header{gap:8px;padding:6px 8px}.song{gap:8px}.song img{width:40px;height:40px}.song b{font-size:13px}.tools{gap:6px}.tools button{padding:7px 9px;font-size:12px}#panel{gap:10px 14px;padding:10px 12px 12px}.btns{gap:6px}.btns button{flex:1 1 0;padding:7px 4px;font-size:12px}}@media(max-width:350px){.btns button{font-size:11px;padding:7px 2px}}
-              </style>
-              <header>${songHTML}<div class="tools"><button id="bkL" class="g" onclick="parent.__closeLayer&&parent.__closeLayer()">‹ 戻る</button><button id="toggle">設定を隠す</button></div></header>
-              <section id="panel">
-                <div class="control"><label class="cap" for="zoom">拡大倍率 <span class="value" id="zoomValue">${cfg.zoom}%</span></label><input id="zoom" type="range" min="5" max="100" step="1" value="${cfg.zoom}"></div>
-                <div class="control"><label class="cap" for="spacing">ノーツ間隔（px/拍） <span class="value" id="spacingValue">${cfg.spacing}</span></label><input id="spacing" type="range" min="16" max="400" step="1" value="${cfg.spacing}"></div>
-                <div class="control"><label class="cap" for="slideOpacity">スライドノーツ透明度 <span class="value" id="slideValue">${Math.round(cfg.slideOpacity*100)}%</span></label><input id="slideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.slideOpacity*100)}"></div>
-                <div class="control"><label class="cap" for="guideOpacity">ガイドノーツ透明度 <span class="value" id="guideValue">${Math.round(cfg.guideOpacity*100)}%</span></label><input id="guideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.guideOpacity*100)}"></div>
-                <div class="control"><span class="cap">ミラー</span><label class="chk"><input id="mirror" type="checkbox" ${cfg.mirror?'checked':''}> 左右反転</label></div>
-                <div class="control"><span class="cap">画像保存</span><div class="btns"><button id="dlSvg">SVGで保存</button><button id="dlPng">PNGで保存</button></div><span class="hint" id="dlMsg"></span></div>
-              </section><main id="chartBox">${first.svg}</main>
+               </style><style>${DKCSS}</style>
+              <header>${songHTML}<div class="tools"><button id="bkL" class="g" onclick="parent.__closeLayer&&parent.__closeLayer()">‹ 戻る</button><button id="toggle" aria-controls="panel">設定を表示</button></div></header>
+               <div id="stageBox"><section id="panel" role="dialog" aria-label="表示設定" hidden><div class="ph"><b>表示設定</b><button type="button" class="g" onclick="document.getElementById('toggle').click()">閉じる</button></div><div class="pb"><section class="grp"><h3>大きさと並べ方</h3><div class="gc"><div class="control"><label class="cap" for="zoom"><span>拡大倍率</span><span class="value" id="zoomValue">${cfg.zoom}%</span></label><input id="zoom" type="range" min="5" max="100" step="1" value="${cfg.zoom}"></div><div class="control"><label class="cap" for="spacing"><span>ノーツ間隔（px/拍）</span><span class="value" id="spacingValue">${cfg.spacing}</span></label><input id="spacing" type="range" min="16" max="400" step="1" value="${cfg.spacing}"></div></div></section><section class="grp"><h3>ノーツの見た目</h3><div class="gc"><div class="control"><label class="cap" for="slideOpacity"><span>スライドノーツ透明度</span><span class="value" id="slideValue">${Math.round(cfg.slideOpacity*100)}%</span></label><input id="slideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.slideOpacity*100)}"></div><div class="control"><label class="cap" for="guideOpacity"><span>ガイドノーツ透明度</span><span class="value" id="guideValue">${Math.round(cfg.guideOpacity*100)}%</span></label><input id="guideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.guideOpacity*100)}"></div><div class="control"><span class="cap"><span>ミラー</span></span><label class="sw"><span>左右反転</span><input id="mirror" type="checkbox" ${cfg.mirror?'checked':''}></label></div></div></section><section class="grp"><h3>画像として保存</h3><div class="gc"><div class="control"><div class="btns"><button id="dlSvg">SVGで保存</button><button id="dlPng">PNGで保存</button></div><span class="note" id="dlMsg"></span></div></div></section></div></section><main id="chartBox">${first.svg}</main></div>
               <script>
                 const cfg={zoom:${cfg.zoom},spacing:${cfg.spacing},slideOpacity:${cfg.slideOpacity},guideOpacity:${cfg.guideOpacity},mirror:${!!cfg.mirror}};
                 const $=id=>document.getElementById(id);
@@ -5289,7 +5310,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
                 $('mirror').addEventListener('change',e=>{cfg.mirror=e.target.checked;requestRender()});
                 $('toggle').addEventListener('click',()=>{const panel=$('panel');panel.hidden=!panel.hidden;$('toggle').textContent=panel.hidden?'設定を表示':'設定を隠す'});
                 ['Svg','Png'].forEach(function(k){$('dl'+k).addEventListener('click',function(){if(typeof window.__saveFromParent==='function')window.__saveFromParent(k.toLowerCase(),{...cfg})})});
-                (${stepperInit})({spacing:[1,10],slideOpacity:[5],guideOpacity:[5]},1);window.__applyZoom=applyZoom;
+                (${stepperInit})({zoom:[1,5],spacing:[1,10],slideOpacity:[5],guideOpacity:[5]},1);(${PW})(document.body);window.__applyZoom=applyZoom;
               <\/script></html>`);
               w.document.close();
               let shown=first; /* いま表示中の描画結果（0小節目の位置＝余白 ml/mb を求めるのに使う） */
@@ -5368,6 +5389,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
             onP('plRate',t=>({rate:Math.round(+t.value*100)/100}));onP('plVol',t=>({vol:t.value/100}));onP('plAo',t=>({aoff:+t.value}));
             onP('plSpd',t=>({spd:+t.value}));onP('plAp',t=>({apb:+t.value}));
             stepperInit({zm:[1,10],slOpacity:[5],gdOpacity:[5],plRate:[.01,.1],plVol:[1,10],plAo:[.01,.1],plSpd:[.01,.1,1],plAp:[1,10]});
+             PW($('#p-settings'));document.querySelectorAll('.snav [data-go]').forEach(b=>b.onclick=()=>{const x=document.getElementById(b.dataset.go);if(x)x.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'start'})});
             onP('plRk',t=>({rk:t.value}),'onchange');onP('plDv',t=>({dv:t.value}),'onchange');onP('plSf',t=>({sf:!t.checked}),'onchange');
             $('#plRst').onclick=()=>{savePrefs({player:{}});syncPlay()}; /* デフォルトボーカルもセカイバージョンに戻る */
             addEventListener('storage',e=>{if(e.key===PREF_KEY&&!$('#p-settings').hidden)syncPlay()}); /* 再生タブで変えた値を設定画面にも反映 */
