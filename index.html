@@ -123,8 +123,57 @@
       @keyframes kcsh{to{transform:translateX(100%)}}
       @media(prefers-reduced-motion:reduce){.kc-bar i,.kc-top i{transition:none}.kc-bar.run i::after{animation:none}}
       @media(max-width:480px){.kc-row{grid-template-columns:6.5em 1fr 7.5em}}
+
+      /* ===== UI再設計：明るい画面（設定・一覧・進捗）===== */
+      :root{--ink:#1f2c47;--mut:#66769a;--acc:#22b3a2;--acc-d:#0f7d6f;--blue:#3b82f6;--ln:#d9e5f2;--bg2:#f0f6fc}
+      body{background:linear-gradient(180deg,#e8f5fd,#f7fbff 360px) fixed,#f7fbff}
+      .top{border-bottom:0;box-shadow:0 6px 18px #2a62a90f}.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--acc),var(--blue))}
+      .card{border-radius:18px;padding:18px;box-shadow:0 1px 2px #1f2c4710,0 8px 24px #3a74b20f}
+      #p-settings h2{display:flex;align-items:center;gap:10px;margin:0 0 16px;font-size:16px;color:var(--ink)}
+      #p-settings h2::before{content:"";flex:none;width:5px;height:18px;border-radius:3px;background:linear-gradient(var(--acc),var(--blue))}
+      #p-settings h3{margin:0 0 12px;padding:0;border:0;font-size:12px;color:var(--acc-d)}
+      .psg{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+      .psg>div{padding:14px 16px 6px;background:var(--bg2);border:1px solid var(--ln);border-radius:16px}
+      .fld{margin-bottom:16px}
+      .fld label{flex-wrap:wrap;gap:4px 10px;font-size:13px}
+      .fld label>span{flex:1 1 11em;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;line-height:1.45;text-wrap:balance;word-break:auto-phrase;line-break:strict}
+      .fld label b{background:#fff;border:1px solid var(--ln);color:var(--acc-d)}
+      .tag{margin:0;background:#dcf4f0;color:var(--acc-d)}
+      #p-settings select{appearance:none;-webkit-appearance:none;height:42px;padding:0 34px 0 12px;border-radius:12px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2366769a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center/12px}
+      .fld.sw{display:block;margin-bottom:12px;padding:10px 14px;background:#fff;border:1px solid var(--ln)}
+      .fld input[type=checkbox]{width:46px;height:28px;background:#c6d4e6}.fld input[type=checkbox]::after{top:3px;left:3px;width:22px;height:22px}.fld input[type=checkbox]:checked::after{transform:translateX(18px)}
+      #p-settings .stp{gap:4px;margin-top:2px;padding:4px;background:#fff;border:1px solid var(--ln);border-radius:14px}
+      #p-settings .stp button{max-width:none;height:38px;border:0;border-radius:10px;background:var(--bg2);color:var(--ink);box-shadow:none}
+      #p-settings .stp button:hover{background:#e0edf9}#p-settings .stp button:disabled{opacity:.3}
+      #p-settings .stp b{flex:2 1 0;max-width:none;background:none;color:var(--acc-d);font-size:16px;font-weight:800}
+      #p-settings button.g{background:#fff;border:1px solid var(--ln);color:var(--ink)}#p-settings button.g:hover{background:var(--bg2)}
+      #p-settings p.mut{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--bg2);line-height:1.6;text-wrap:pretty}
+      #pv,#chart{background:#0e1626}
+      .kc-box{background:#fff;border-radius:16px}.kc-pc{color:var(--acc-d)}
+      .kc-bar{height:12px;background:#e3edf8}.kc-bar i{background:linear-gradient(90deg,var(--acc),var(--blue))}
+      .kc-rows{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px 18px}
+      .kc-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n v" "b b";gap:5px 10px;font-size:12.5px}
+      .kc-row>span{grid-area:n;font-weight:700}.kc-row>b{grid-area:v}.kc-row>.kc-bar{grid-area:b;height:7px}
+      .kc-act{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}.kc-act button{white-space:normal}
+      .kc-top{height:4px}
+      #st{background:#1f2c47f2;border-radius:12px;padding:10px 16px;font-size:13px}
+      .pgs{width:min(100%,400px);background:linear-gradient(160deg,#18283f,#111b2d);border-color:#2b4260}
+      .pgs li{white-space:nowrap;font-size:clamp(10px,2.9vw,12px)}.pgt{text-wrap:balance;text-align:center}
+      /* 起動時の読み込み画面（明るい配色） */
+      body.ld main,body.ld header.top,body.ld #nav,body.ld #scrim{visibility:hidden}
+      #ldOv{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:20px;background:radial-gradient(70% 60% at 50% 38%,#fff,#e9f5fd 70%,#e1f0fa);color:var(--ink);font:14px/1.5 system-ui,"Hiragino Sans","Noto Sans JP",sans-serif}
+      #ldOv[hidden]{display:none}
+      #ldOv .ldCard{width:min(400px,100%);padding:28px 24px 22px;border-radius:22px;background:#fff;border:1px solid var(--ln);box-shadow:0 20px 50px #3a74b223;text-align:center}
+      #ldOv .ldTitle{margin-bottom:16px;font-size:16px;font-weight:800;color:var(--acc-d)}
+      #ldOv .ldMsg{margin-bottom:14px;font-size:15px;font-weight:700;text-wrap:balance;word-break:auto-phrase;line-break:strict}
+      #ldOv .ldBarWrap{height:12px;border-radius:99px;background:#e3edf8;overflow:hidden}
+      #ldOv .ldBarWrap i{position:relative;display:block;height:100%;width:0;border-radius:inherit;overflow:hidden;background:linear-gradient(90deg,var(--acc),var(--blue));transition:width .5s cubic-bezier(.22,1,.36,1)}
+      #ldOv .ldBarWrap i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#fff9 50%,transparent 70%);transform:translateX(-100%);animation:ldsh 1.4s ease-in-out infinite}
+      #ldOv .ldSub{display:flex;justify-content:space-between;gap:12px;margin-top:10px;font-size:12px;color:var(--mut);text-align:left}
+      #ldOv .ldSub #ldPct{flex:none;font-weight:800;color:var(--acc-d);font-variant-numeric:tabular-nums}
+      @keyframes ldsh{to{transform:translateX(100%)}}
+      @media(prefers-reduced-motion:reduce){#ldOv .ldBarWrap i{transition:none}#ldOv .ldBarWrap i::after{animation:none}}
     </style>
-    <link rel="stylesheet" href="css/ui.css" />
   </head>
   <body>
     <div id="ldOv" role="status" aria-label="読み込み中">
@@ -135,17 +184,6 @@
         <div class="ldSub"><span id="ldLab">楽曲データを取得しています</span><span id="ldPct">0%</span></div>
       </div>
     </div>
-    <style>
-      #ldOv{position:fixed;inset:0;z-index:300;background:#101827;color:#e5edf7;display:flex;align-items:center;justify-content:center;font:14px system-ui,"Hiragino Sans","Noto Sans JP",sans-serif}
-      #ldOv[hidden]{display:none}
-      #ldOv .ldCard{width:min(420px,86vw);text-align:center}
-      #ldOv .ldTitle{font-size:17px;font-weight:700;margin-bottom:14px}
-      #ldOv .ldMsg{font-size:14px;margin-bottom:12px}
-      #ldOv .ldBarWrap{height:10px;border-radius:999px;background:#26364d;overflow:hidden}
-      #ldOv .ldBarWrap i{display:block;height:100%;width:0%;border-radius:999px;background:#2fbfae;transition:width .3s ease}
-      #ldOv .ldSub{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#9db4cc}
-      body.ld main,body.ld header.top,body.ld #nav,body.ld #scrim{visibility:hidden}
-    </style>
     <script>
       document.body.classList.add('ld');
       window.__ldN=0;window.__ldT=3;
@@ -5147,7 +5185,47 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
              document.addEventListener('visibilitychange',()=>isHid()?goHide():goShow());addEventListener('pagehide',goHide);addEventListener('pageshow',goShow);
              window.__pl={setView,get view(){return view},seek,draw,ui,tm,atT,lay,setSpd,setPlay,prevBar,nextBar,N,C,LN,dur,get t(){return cur},get playing(){return playing},get pps(){return pps},JY};
             }
-            const openPlayer=w=>{
+            const UI_DARK=`
+:root{--bg:#0e1626;--sf:#16233a;--sf2:#1d2f4a;--ln:#2b4260;--ink:#e6eef9;--mut:#92a7c3;--acc:#4fd6c3;--acc-d:#08302b}
+body{background:var(--bg);color:var(--ink)}
+header{background:var(--sf);border-bottom:1px solid var(--ln)}footer{background:var(--sf);border-top:1px solid var(--ln)}
+#wrap,#chartBox{background:var(--bg)}
+button{background:var(--acc);color:var(--acc-d);border-radius:10px}
+button.g{background:var(--sf2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--ln)}
+#tg[aria-expanded=true]{background:var(--acc);color:var(--acc-d);box-shadow:none}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.hint{font-size:11px;color:var(--mut)}
+#panel{position:absolute;z-index:60;display:flex;flex-direction:column;gap:0;padding:0;max-height:none;overflow:hidden;background:var(--sf);border:1px solid var(--ln);box-shadow:0 20px 56px #000a;animation:pin .24s cubic-bezier(.22,1,.36,1)}
+@media(min-width:760px){#panel{top:10px;right:10px;bottom:10px;width:min(396px,calc(100% - 20px));border-radius:20px}}
+@media(max-width:759px){#panel{top:0;left:0;right:0;max-height:min(78%,520px);border-width:0 0 1px;border-radius:0 0 20px 20px;animation-name:pdn}}
+@keyframes pin{from{opacity:0;transform:translateX(16px)}}@keyframes pdn{from{opacity:0;transform:translateY(-16px)}}
+.zw{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.ph{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--ln)}.ph b{font-size:15px}
+.pb{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 16px 20px}
+.grp{padding:14px 0 4px}.grp+.grp{border-top:1px solid var(--ln)}.grp h4{margin:0 0 12px;font-size:12px;font-weight:800;color:var(--acc)}
+.gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px 16px;margin-bottom:12px}
+.control{min-width:0;gap:6px}.control.wide{grid-column:1/-1}
+.cap{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:2px 8px;font-size:13px;font-weight:700;line-height:1.45;color:var(--ink);text-wrap:balance;word-break:auto-phrase;line-break:strict}
+.sub{margin:-2px 0 0;font-size:11px;line-height:1.5;color:var(--mut);text-wrap:pretty}
+.control input[type=range]{accent-color:var(--acc)}
+.control select{height:42px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--ln)}
+#panel .stp{gap:4px;margin-top:0;padding:4px;background:var(--bg);border:1px solid var(--ln);border-radius:14px}
+#panel .stp button{max-width:none;height:38px;border:0;border-radius:10px;background:var(--sf2);color:var(--ink);box-shadow:none}
+#panel .stp button:disabled{opacity:.3}
+#panel .stp b,#panel .stp .value{flex:2 1 0;max-width:none;background:none;color:var(--acc);font-size:16px;font-weight:800}
+.chk{grid-column:1/-1;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px;height:auto;min-height:46px;padding:8px 14px;border:1px solid var(--ln);border-radius:12px;background:var(--bg);font-size:13px;font-weight:700;line-height:1.4}
+.chk input{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:46px;height:28px;margin:0;border-radius:99px;background:#38506f;cursor:pointer;transition:background .15s}
+.chk input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s}
+.chk input:checked{background:var(--acc)}.chk input:checked::after{transform:translateX(18px)}
+.btns{display:flex;flex-wrap:nowrap;gap:8px}.btns button{flex:1 1 0;min-width:0;white-space:nowrap;padding:10px 6px}
+#ldOvP{background:radial-gradient(60% 50% at 50% 45%,#16304a,#0e1626 75%)}
+#ldOvP .ldCard{width:min(380px,calc(100% - 32px));padding:24px 22px 20px;border-radius:20px;background:var(--sf);border:1px solid var(--ln);box-shadow:0 18px 48px #0009}
+#ldOvP .ldMsg{margin-bottom:14px;font-size:15px;font-weight:800}
+#ldOvP .ldBarWrap{height:10px;background:#22344f}#ldOvP .ldBarWrap i{background:linear-gradient(90deg,var(--acc),#8ab4ff)}
+#ldOvP .ldSub{margin-top:12px;font-size:12px;color:var(--mut);text-wrap:balance}
+@media(prefers-reduced-motion:reduce){#panel,#ldOvP .ldBarWrap i{animation:none}.chk input,.chk input::after{transition:none}}
+`;
+             const openPlayer=w=>{
              const S=parseSUS(sus),D=buildPlay(S);
              if(!D.nodes.length&&!D.chains.length)throw new Error('再生できるノーツがありません');
              D.pf=playPrefs();
@@ -5172,27 +5250,37 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
               .tl{display:flex;align-items:center;gap:10px}.tl input{flex:1;min-width:0;accent-color:#58d7c4}.tl span{min-width:4.4em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
               .ctl{display:grid;grid-template-columns:1fr 1fr 1.25fr 1fr;gap:6px;width:100%;max-width:560px;margin:0 auto}.ctl button{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;font-size:clamp(11px,2.9vw,13px);line-height:1.2;white-space:nowrap}.ctl button b{font-size:1.25em;line-height:1}.ctl label{display:flex;align-items:center;gap:6px;color:#c4d2e4;font-size:12px}.ctl input[type=range]{width:120px;accent-color:#58d7c4}.ctl select,.control select{background:#0f1a2b;color:#e5edf7;border:1px solid #344b66;border-radius:6px;padding:5px 6px;font:inherit}.control select{width:100%;height:30px;padding-top:0;padding-bottom:0;text-overflow:ellipsis}
               .sp{flex:1}.hint{font-size:11px;color:#91a6bf}#astat{text-align:center}#astat:empty{display:none}
-             </style><link rel="stylesheet" href="${new URL('css/ui.css',location.href).href}">
+             ${UI_DARK}
+</style>
              <header>${songHTML}<div class="tools"><button id="bkL" class="g" onclick="parent.__closeLayer&&parent.__closeLayer()">‹ 戻る</button><button id="tg" class="g" aria-expanded="false" aria-controls="panel">表示設定</button></div></header>
-             <section id="panel" aria-label="表示設定" hidden>
-              <div class="control wide"><label class="cap" for="rate">再生速度 <b id="ratev"></b></label><input id="rate" type="range" min="0.25" max="1" step="0.01"></div>
-              <div class="control wide"><label class="cap" for="vocal">ボーカル</label><select id="vocal" disabled><option>読み込み中…</option></select></div>
-              <div class="control"><label class="cap" for="vol">音量 <b id="volv"></b></label><input id="vol" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="ao">音源のタイミング補正（＋で音が早く／−で遅く） <b id="aov"></b></label><input id="ao" type="range" min="-3" max="3" step="0.01"></div>
-              <div class="control"><label class="cap" for="spd">ノーツ速度 <b id="spdv"></b></label><input id="spd" type="range" min="1" max="12" step=".01"></div>
-              <div class="control"><label class="cap" for="rk">再生速度を変えたとき</label><select id="rk"><option value="all">全体が変化（ノーツ速度も変わる）</option><option value="keep">ノーツ速度はそのまま</option></select></div>
-              <div class="control wide"><label class="cap" for="ap">ノーツ表示開始位置（レーン奥から） <b id="apv"></b></label><input id="ap" type="range" min="0" max="100" step="1"></div>
-              <div class="control"><span class="cap">ミラー</span><label class="chk"><input id="mir" type="checkbox"> 左右反転</label></div>
-              <div class="control"><span class="cap">ソフラン（速度変化）</span><label class="chk"><input id="sf" type="checkbox"> ソフランなし</label></div>
-              <div class="control"><label class="cap" for="slO">スライドノーツ透明度 <b id="slv"></b></label><input id="slO" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="gdO">ガイドノーツ透明度 <b id="gdv"></b></label><input id="gdO" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="skin">ノーツの見た目</label><select id="skin"><option value="01">スキン 01</option><option value="02">スキン 02</option></select></div>
-              <div class="control"><label class="cap" for="seSet">ノーツの音</label><select id="seSet"><option value="01">サウンド 01</option><option value="02">サウンド 02</option><option value="off">オフ</option></select></div>
-              <div class="control"><label class="cap" for="seVol">ノーツ音の音量 <b id="sevolv"></b></label><input id="seVol" type="range" min="0" max="100"></div>
-              <div class="control"><label class="cap" for="bgB">背景の明るさ <b id="bgbv"></b></label><input id="bgB" type="range" min="20" max="150" step="5"></div>
-              <div class="control"><label class="cap" for="fxq">エフェクトの強さ</label><select id="fxq"><option value="0">強い（通常）</option><option value="1">弱い（低特效）</option></select></div>
-             </section>
-             <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}${window.__NSP&&window.__NSP.ready?window.__NSP.defs:''}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
+             
+             <main id="wrap"><section id="panel" aria-label="表示設定" hidden>
+               <div class="ph"><b>表示設定</b><button type="button" class="g" onclick="document.getElementById('tg').click()">閉じる</button></div>
+               <div class="pb">
+               <section class="grp"><h4>再生</h4><div class="gr">
+                <div class="control wide"><label class="cap" for="rate">再生速度 <b id="ratev"></b></label><input id="rate" type="range" min="0.25" max="1" step="0.01"></div>
+                <div class="control wide"><label class="cap" for="rk">再生速度を変えたとき</label><select id="rk"><option value="all">全体が変化（ノーツ速度も変わる）</option><option value="keep">ノーツ速度はそのまま</option></select></div>
+                <div class="control wide"><label class="cap" for="vocal">ボーカル</label><select id="vocal" disabled><option>読み込み中…</option></select></div>
+                <div class="control"><label class="cap" for="vol">音量 <b id="volv"></b></label><input id="vol" type="range" min="0" max="100"></div>
+                <div class="control"><label class="cap" for="ao">音源のタイミング補正 <b id="aov"></b></label><small class="sub">＋で音が早く／−で遅く</small><input id="ao" type="range" min="-3" max="3" step="0.01"></div>
+               </div></section>
+               <section class="grp"><h4>ノーツ</h4><div class="gr">
+                <div class="control"><label class="cap" for="spd">ノーツ速度 <b id="spdv"></b></label><input id="spd" type="range" min="1" max="12" step=".01"></div>
+                <div class="control"><label class="cap" for="ap">ノーツ表示開始位置 <b id="apv"></b></label><small class="sub">レーンの奥から何%の位置で表示するか</small><input id="ap" type="range" min="0" max="100" step="1"></div>
+                <div class="control"><label class="cap" for="slO">スライドノーツ透明度 <b id="slv"></b></label><input id="slO" type="range" min="0" max="100"></div>
+                <div class="control"><label class="cap" for="gdO">ガイドノーツ透明度 <b id="gdv"></b></label><input id="gdO" type="range" min="0" max="100"></div>
+                <div class="control wide"><label class="cap" for="skin">ノーツの見た目</label><select id="skin"><option value="01">スキン 01</option><option value="02">スキン 02</option></select></div>
+                <label class="chk"><span>ミラー（左右反転）</span><input id="mir" type="checkbox"></label>
+                <label class="chk"><span>ソフラン（速度変化）をなしにする</span><input id="sf" type="checkbox"></label>
+               </div></section>
+               <section class="grp"><h4>音と演出</h4><div class="gr">
+                <div class="control"><label class="cap" for="seSet">ノーツの音</label><select id="seSet"><option value="01">サウンド 01</option><option value="02">サウンド 02</option><option value="off">オフ</option></select></div>
+                <div class="control"><label class="cap" for="seVol">ノーツ音の音量 <b id="sevolv"></b></label><input id="seVol" type="range" min="0" max="100"></div>
+                <div class="control"><label class="cap" for="bgB">背景の明るさ <b id="bgbv"></b></label><input id="bgB" type="range" min="20" max="150" step="5"></div>
+                <div class="control"><label class="cap" for="fxq">エフェクトの強さ</label><select id="fxq"><option value="0">強い（通常）</option><option value="1">弱い（低特効）</option></select></div>
+               </div></section>
+               </div>
+              </section><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}${window.__NSP&&window.__NSP.ready?window.__NSP.defs:''}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
               <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
              <footer>
               <div class="tl"><span id="tcur">0:00.0</span><input id="seek" type="range" aria-label="再生位置"><span id="tend"></span></div>
@@ -5204,7 +5292,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
               <div id="astat" class="hint" role="status"></div>
               <div class="hint">Space：再生/一時停止　←→：1秒（Shift で5秒）　↑↓：小節移動　Home：先頭　End：末尾　V：表示切り替え</div>
              </footer>
-             <script>window.__ldA2=false;window.__ldE2=false;window.__ldHide=function(){if(window.__ldA2&&window.__ldE2){var o=document.getElementById("ldOvP");if(o)o.hidden=true;}};window.__ldA=function(){window.__ldA2=true;window.__ldHide();};window.__ldE=function(){window.__ldE2=true;window.__ldHide();};setTimeout(function(){window.__ldA2=true;window.__ldE2=true;window.__ldHide();},45000);setInterval(function(){if(window.__ldA2&&window.__ldE2)return;var a=document.getElementById("astat"),l=document.getElementById("ldSubP");if(a&&l&&a.textContent)l.textContent=a.textContent;},250);<\/script><script>const cubicPoint=${cubicPoint},cubicXAtY=${cubicXAtY};const MMW_ENG=${mmwFactory}();(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5]},0);<\/script></html>`);
+             <script>window.__ldA2=false;window.__ldE2=false;window.__ldHide=function(){if(window.__ldA2&&window.__ldE2){var o=document.getElementById("ldOvP");if(o)o.hidden=true;}};window.__ldA=function(){window.__ldA2=true;window.__ldHide();};window.__ldE=function(){window.__ldE2=true;window.__ldHide();};setTimeout(function(){window.__ldA2=true;window.__ldE2=true;window.__ldHide();},45000);setInterval(function(){if(window.__ldA2&&window.__ldE2)return;var a=document.getElementById("astat"),l=document.getElementById("ldSubP");if(a&&l&&a.textContent)l.textContent=a.textContent;},250);<\/script><script>const cubicPoint=${cubicPoint},cubicXAtY=${cubicXAtY};const MMW_ENG=${mmwFactory}();(${playerMain})(${json});(${stepperInit})({rate:[.01,.1],vol:[1,10],ao:[.01,.1],spd:[.01,.1,1],ap:[1,10],slO:[5],gdO:[5]},1);<\/script></html>`);
              w.document.close();
             };
             /* ---------- 拡大表示・譜面再生：別タブを開かず、同じタブの全画面レイヤー（iframe）で表示する ----------
@@ -5268,16 +5356,22 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
                 .chk{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid #344b66;border-radius:6px;background:#0f1a2b;font-size:13px;color:#e5edf7;cursor:pointer;user-select:none}.chk:has(input:checked){border-color:#58d7c4}.chk input{width:16px;height:16px;margin:0;accent-color:#58d7c4}
                 #chartBox{flex:1;min-height:0;overflow:auto;padding:12px;background:#111827}#chartBox svg{display:block;max-width:none;height:auto}.hint{font-size:10px;color:#91a6bf}
                 @media(max-width:560px){header{gap:8px;padding:6px 8px}.song{gap:8px}.song img{width:40px;height:40px}.song b{font-size:13px}.tools{gap:6px}.tools button{padding:7px 9px;font-size:12px}#panel{gap:10px 14px;padding:10px 12px 12px}.btns{gap:6px}.btns button{flex:1 1 0;padding:7px 4px;font-size:12px}}@media(max-width:350px){.btns button{font-size:11px;padding:7px 2px}}
-              </style><link rel="stylesheet" href="${new URL('css/ui.css',location.href).href}">
+              ${UI_DARK}
+</style>
               <header>${songHTML}<div class="tools"><button id="bkL" class="g" onclick="parent.__closeLayer&&parent.__closeLayer()">‹ 戻る</button><button id="toggle">設定を隠す</button></div></header>
-              <section id="panel">
-                <div class="control"><label class="cap" for="zoom">拡大倍率 <span class="value" id="zoomValue">${cfg.zoom}%</span></label><input id="zoom" type="range" min="5" max="100" step="1" value="${cfg.zoom}"></div>
-                <div class="control"><label class="cap" for="spacing">ノーツ間隔（px/拍） <span class="value" id="spacingValue">${cfg.spacing}</span></label><input id="spacing" type="range" min="16" max="400" step="1" value="${cfg.spacing}"></div>
-                <div class="control"><label class="cap" for="slideOpacity">スライドノーツ透明度 <span class="value" id="slideValue">${Math.round(cfg.slideOpacity*100)}%</span></label><input id="slideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.slideOpacity*100)}"></div>
-                <div class="control"><label class="cap" for="guideOpacity">ガイドノーツ透明度 <span class="value" id="guideValue">${Math.round(cfg.guideOpacity*100)}%</span></label><input id="guideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.guideOpacity*100)}"></div>
-                <div class="control"><span class="cap">ミラー</span><label class="chk"><input id="mirror" type="checkbox" ${cfg.mirror?'checked':''}> 左右反転</label></div>
-                <div class="control"><span class="cap">画像保存</span><div class="btns"><button id="dlSvg">SVGで保存</button><button id="dlPng">PNGで保存</button></div><span class="hint" id="dlMsg"></span></div>
-              </section><main id="chartBox">${first.svg}</main>
+              <div class="zw"><section id="panel">
+                <div class="ph"><b>表示設定</b><button type="button" class="g" onclick="document.getElementById('toggle').click()">閉じる</button></div>
+                <div class="pb">
+                <section class="grp"><h4>拡大</h4><div class="gr"><div class="control wide"><label class="cap" for="zoom">拡大倍率 <span class="value" id="zoomValue">${cfg.zoom}%</span></label><input id="zoom" type="range" min="5" max="100" step="1" value="${cfg.zoom}"></div></div></section>
+                <section class="grp"><h4>譜面の並べ方</h4><div class="gr"><div class="control wide"><label class="cap" for="spacing">ノーツ間隔（px/拍） <span class="value" id="spacingValue">${cfg.spacing}</span></label><input id="spacing" type="range" min="16" max="400" step="1" value="${cfg.spacing}"></div></div></section>
+                <section class="grp"><h4>ノーツの見た目</h4><div class="gr">
+                 <div class="control"><label class="cap" for="slideOpacity">スライドノーツ透明度 <span class="value" id="slideValue">${Math.round(cfg.slideOpacity*100)}%</span></label><input id="slideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.slideOpacity*100)}"></div>
+                 <div class="control"><label class="cap" for="guideOpacity">ガイドノーツ透明度 <span class="value" id="guideValue">${Math.round(cfg.guideOpacity*100)}%</span></label><input id="guideOpacity" type="range" min="0" max="100" step="1" value="${Math.round(cfg.guideOpacity*100)}"></div>
+                 <label class="chk"><span>ミラー（左右反転）</span><input id="mirror" type="checkbox" ${cfg.mirror?'checked':''}></label>
+                </div></section>
+                <section class="grp"><h4>画像として保存</h4><div class="control"><div class="btns"><button id="dlSvg">SVGで保存</button><button id="dlPng">PNGで保存</button></div><span class="hint" id="dlMsg"></span></div></section>
+                </div>
+               </section><main id="chartBox">${first.svg}</main></div>
               <script>
                 const cfg={zoom:${cfg.zoom},spacing:${cfg.spacing},slideOpacity:${cfg.slideOpacity},guideOpacity:${cfg.guideOpacity},mirror:${!!cfg.mirror}};
                 const $=id=>document.getElementById(id);
@@ -5290,7 +5384,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
                 $('mirror').addEventListener('change',e=>{cfg.mirror=e.target.checked;requestRender()});
                 $('toggle').addEventListener('click',()=>{const panel=$('panel');panel.hidden=!panel.hidden;$('toggle').textContent=panel.hidden?'設定を表示':'設定を隠す'});
                 ['Svg','Png'].forEach(function(k){$('dl'+k).addEventListener('click',function(){if(typeof window.__saveFromParent==='function')window.__saveFromParent(k.toLowerCase(),{...cfg})})});
-                (${stepperInit})({spacing:[1,10],slideOpacity:[5],guideOpacity:[5]},0);window.__applyZoom=applyZoom;
+                (${stepperInit})({zoom:[1,10],spacing:[1,10],slideOpacity:[5],guideOpacity:[5]},1);window.__applyZoom=applyZoom;if(matchMedia("(max-width:759px)").matches)$("toggle").click();
               <\/script></html>`);
               w.document.close();
               let shown=first; /* いま表示中の描画結果（0小節目の位置＝余白 ml/mb を求めるのに使う） */
