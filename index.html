@@ -632,17 +632,17 @@
             /* ---------- ノーツ描画（ゲーム内デザインを再現したSVG） ---------- */
             const LW=20,PL=46,PR=104,COLW=PL+12*LW+PR,TOP=30;
             const C={tap:['#b9a0f5','#efe6ff','#e3f1ff','#8fb4fb','#3de8fa','#8591f5','#7a52a0'],long:['#7aeed8','#dcfcf4','#d8fcea','#8cf5c4','#4ee89a','#5edea3','#2f6f5a'],flick:['#ffc0d6','#ffecf3','#fdecf6','#f4aadd','#f58fd0','#f69bbe','#a05a7a'],crit:['#f6c869','#fffbd0','#fffccc','#f8e272','#ffee4d','#fdb64c','#9a7a1e'],dmg:['#a98bd0','#efe5fa','#e2d3f4','#8d63c4','#6f43a8','#8d63c4','#4a2d73'],unknown:['#ff9a9a','#ffe0e0','#ffd0d0','#dc5555','#b82e2e','#b82e2e','#6a1a1a']}; /* ノーツスキン（実機の選択画面）の配色：[枠上,面上,面下,帯上,帯下,端の印,外側の影] */
-            const body=(x,y,w,k,a=1,h=14)=>{const c=C[k]||C.unknown,t=y-h/2,r=Math.min(3.4,h*.24),i=Math.max(1,h*.1),cw=h*.3,f=n=>+n.toFixed(2);
+            const body=(x,y,w,k,a=1,h=14)=>{if(window.__NSP&&window.__NSP.ready){const bid=k==='crit'?'b-crit':k==='flick'?'b-flick':k==='long'?'b-long':'b-tap',sh=w*186/354,ff=n=>+n.toFixed(2);return window.__NSP_IMG?`<g opacity="${a}"><image href="${window.__NSP.uri[bid]}" x="${ff(x)}" y="${ff(y-sh/2)}" width="${ff(w)}" height="${ff(sh)}"/></g>`:`<g opacity="${a}"><use href="#ns-${bid}" x="${ff(x)}" y="${ff(y-sh/2)}" width="${ff(w)}" height="${ff(sh)}"/></g>`}const c=C[k]||C.unknown,t=y-h/2,r=Math.min(3.4,h*.24),i=Math.max(1,h*.1),cw=h*.3,f=n=>+n.toFixed(2);
              return`<g opacity="${a}"><rect x="${x-2.5}" y="${f(t-2.5)}" width="${w+5}" height="${h+5}" rx="${f(r+2.5)}" fill="${c[5]}" opacity=".24"/><rect x="${x-1}" y="${f(t-1)}" width="${w+2}" height="${h+2}" rx="${f(r+1)}" fill="${c[6]}" opacity=".7"/><rect x="${x}" y="${f(t)}" width="${w}" height="${h}" rx="${f(r)}" fill="${c[3]}"/><path d="M${x} ${f(t+h*.74)}V${f(t+r)}Q${x} ${f(t)} ${f(x+r)} ${f(t)}H${f(x+w-r)}Q${x+w} ${f(t)} ${x+w} ${f(t+r)}V${f(t+h*.74)}Z" fill="${c[0]}"/><rect x="${f(x+1)}" y="${f(t+h*.82)}" width="${f(w-2)}" height="${f(h*.18)}" rx="${f(r*.5)}" fill="${c[4]}"/><rect x="${f(x+i)}" y="${f(t+i)}" width="${f(w-2*i)}" height="${f(h*.62)}" rx="${f(r*.7)}" fill="${c[1]}"/><rect x="${f(x+i+1)}" y="${f(t+h*.42)}" width="${f(w-2*i-2)}" height="${f(h*.3)}" rx="${f(r*.4)}" fill="${c[2]}" opacity=".85"/><rect x="${f(x+i)}" y="${f(t+h*.25)}" width="${f(cw)}" height="${f(h*.36)}" rx="1" fill="${c[5]}"/><rect x="${f(x+w-i-cw)}" y="${f(t+h*.25)}" width="${f(cw)}" height="${f(h*.36)}" rx="1" fill="${c[5]}"/></g>`};
             const GM={crit:['#ffd24a','#fff1c4'],flick:['#ff8fbf','#ffd9ee'],long:['#4fe0b0','#d5fff0']}; /* 宝石：[縁と光彩, 右の面]（左の面は白） */
             /* 中継点：ゲーム画面の宝石（八面体）と同じ形。上の四角錐は左面が白・右面が淡色、下は逆さ四角錐、上の縁のまわりに影。寸法はゲーム画面の値（幅.88・上.405・手前+.2・下+.475マス）を1マス=LW で換算 */
             const GG={long:['#b8f7d7','#a8f0d6','#ecfff7','10,120,85','150,240,215'],crit:['#fff0a8','#ffc649','#ffd870','200,140,10','255,238,160'],flick:['#ffc9e1','#ff8fbf','#ffc4de','190,50,110','255,180,215']}; /* [右面,左下の縁,右下の縁,上の影RGB,下の錐RGB] */
-            const gemG=(x,y,k)=>{
+            const gemG=(x,y,k)=>{if(window.__NSP&&window.__NSP.ready){const aid=k==='crit'?'am-c':'am',s=.88*LW,sh=s*160/158,ff=n=>+n.toFixed(2);return window.__NSP_IMG?`<image href="${window.__NSP.uri[aid]}" x="${ff(x-s/2)}" y="${ff(y-.405*LW)}" width="${ff(s)}" height="${ff(sh)}"/>`:`<use href="#ns-${aid}" x="${ff(x-s/2)}" y="${ff(y-.405*LW)}" width="${ff(s)}" height="${ff(sh)}"/>`}
              const c=GG[k]||GG.long,w=.44*LW,t=.405*LW,f=.2*LW,b=.475*LW,r=v=>+v.toFixed(2),P=p=>p.map(q=>r(q[0])+','+r(q[1])).join(' '),pg=(p,a)=>`<polygon points="${P(p)}" ${a}/>`,ln=(p,c)=>`<polyline points="${P(p)}" fill="none" stroke="${c}"/>`;
              return[[1.5,.07],[1.34,.1],[1.18,.14]].map(([m,a])=>pg([[x,y-t*m*.96],[x+w*m,y-.02*LW],[x,y+f*.9],[x-w*m,y-.02*LW]],`fill="rgb(${c[3]})" fill-opacity="${a}"`)).join('')
               +pg([[x-w,y],[x,y+f],[x+w,y],[x,y+b]],`fill="rgb(${c[4]})" fill-opacity=".32"`)+pg([[x,y-t],[x,y+f],[x-w,y]],'fill="#fff"')+pg([[x,y-t],[x+w,y],[x,y+f]],`fill="${c[0]}"`)
               +ln([[x-w,y],[x,y+f]],c[1])+ln([[x,y+f],[x+w,y]],c[2])};
-            const gem=(x,y,k,g)=>{if(g)return gemG(x,y,k);const f=GM[k]||GM.long;return`<polygon points="${x},${y-7.2} ${x+6.8},${y} ${x},${y+7.2} ${x-6.8},${y}" fill="${f[0]}" opacity=".4"/><polygon points="${x},${y-5.6} ${x+5.2},${y} ${x},${y+5.6} ${x-5.2},${y}" fill="${f[1]}" stroke="${f[0]}" stroke-width="1"/><polygon points="${x},${y-5.6} ${x-5.2},${y} ${x},${y}" fill="#fff"/>`};
+            const gem=(x,y,k,g)=>{if(g)return gemG(x,y,k);if(window.__NSP&&window.__NSP.ready){const aid=k==='crit'?'af-c':k==='flick'?'af-f':'af',ff=n=>+n.toFixed(2);return window.__NSP_IMG?`<image href="${window.__NSP.uri[aid]}" x="${ff(x-6.8)}" y="${ff(y-7.3)}" width="13.6" height="14.6"/>`:`<use href="#ns-${aid}" x="${ff(x-6.8)}" y="${ff(y-7.3)}" width="13.6" height="14.6"/>`}const f=GM[k]||GM.long;return`<polygon points="${x},${y-7.2} ${x+6.8},${y} ${x},${y+7.2} ${x-6.8},${y}" fill="${f[0]}" opacity=".4"/><polygon points="${x},${y-5.6} ${x+5.2},${y} ${x},${y+5.6} ${x-5.2},${y}" fill="${f[1]}" stroke="${f[0]}" stroke-width="1"/><polygon points="${x},${y-5.6} ${x-5.2},${y} ${x},${y}" fill="#fff"/>`};
              /* ---------- フリック矢印（外部画像なし・SVGで描画） ----------
                 元の notes_flick_arrow*.png を計測して再現：単色の塗り・淡色リング(太さ8)・濃い縁(4.2)・外側のぼかし影・下へ伸びる白いトレイル。
                 下の座標はすべて元PNGのピクセル座標。従来のimage要素(meet)と同じ位置・縮尺で配置するので、サイズ・向きは従来と同一。
@@ -669,7 +669,7 @@
              const flkArt=(w,diag,k)=>{
                const r=(diag?FK_D:FK_V)[Math.max(1,Math.min(6,w))-1],W=r[0],H=r[1],st=r[r.length-1],c=FK_C[k]||FK_C.flick,G=FK_G[k]||FK_G.flick,hf=FK_T/2;
                const P=diag?[0,1,2,3,4,5].map(i=>[r[2+2*i],r[3+2*i]]):[[r[2]-r[3],r[4]],[r[2]-r[3],r[5]],[r[2],r[6]],[r[2]+r[3],r[5]],[r[2]+r[3],r[4]],[r[2],r[7]]];
-               const n=v=>+v.toFixed(1),pt=p=>n(p[0])+' '+n(p[1]),id='fk'+(FK_N++),slope=diag?.5774:0;
+               if(window.__NSP&&window.__NSP.ready){const aid='a-'+(diag?(k==='crit'?'cd':'d'):(k==='crit'?'cs':'s'))+Math.max(1,Math.min(6,w));return{W,H,svg:window.__NSP_IMG?'<image href="'+window.__NSP.uri[aid]+'" width="'+W+'" height="'+H+'"/>':'<use href="#ns-'+aid+'" width="'+W+'" height="'+H+'"/>'}}const n=v=>+v.toFixed(1),pt=p=>n(p[0])+' '+n(p[1]),id='fk'+(FK_N++),slope=diag?.5774:0;
                /* トレイル：切欠き(V)の下から画像下端へ。左右の縁は縦、または斜め時は30°で下へ流れる */
                const L=[P[1][0]+hf,P[1][1]],R=[P[3][0]-hf,P[3][1]],y0=P[2][1];
                const tr=`M${pt(L)}L${pt(P[2])}L${pt(R)}L${n(R[0]+slope*(H-R[1]))} ${H}L${n(L[0]+slope*(H-L[1]))} ${H}Z`;
@@ -696,7 +696,7 @@
             /* Trace body only; flick-trace arrows are rendered with the same sprite
                as ordinary flick notes so the silhouette and direction match. */
             const TC={long:['#58f0a9','#52edc6','#81faa7','#2f8f6e'],crit:['#fdde85','#fad584','#fff775','#d6a52a'],flick:['#ff92c7','#ff95be','#ff8dcc','#c85c98']}; /* トレースの棒：[中,上,下,影] */
-            const trc=(x,y,w,cr,fl,d=0,alpha=1)=>{const k=cr?'crit':fl?'flick':'long',c=TC[k];return`<g opacity="${alpha}"><rect x="${x-1}" y="${y-5.5}" width="${w+2}" height="11" rx="3.6" fill="${c[3]}" opacity=".5"/><rect x="${x}" y="${y-4.5}" width="${w}" height="9" rx="3" fill="${c[0]}"/><rect x="${x+1.5}" y="${y-3.9}" width="${w-3}" height="3.2" rx="1.6" fill="${c[1]}"/><rect x="${x+1.5}" y="${y+1.7}" width="${w-3}" height="2.4" rx="1.2" fill="${c[2]}"/>${gem(x+w/2,y,k)}</g>`};
+            const trc=(x,y,w,cr,fl,d=0,alpha=1)=>{if(window.__NSP&&window.__NSP.ready){const bid=cr?'b-frc':fl?'b-frf':'b-fr',did=cr?'af-c':fl?'af-f':'af',sh=w*186/354,ds=Math.max(10,Math.min(20,w*.34)),cx=x+w/2,ff=n=>+n.toFixed(2);const B=window.__NSP_IMG?'<image href="'+window.__NSP.uri[bid]+'" x="'+ff(x)+'" y="'+ff(y-sh/2)+'" width="'+ff(w)+'" height="'+ff(sh)+'"/><image href="'+window.__NSP.uri[did]+'" x="'+ff(cx-ds/2)+'" y="'+ff(y-ds/2)+'" width="'+ff(ds)+'" height="'+ff(ds)+'"/>':'<use href="#ns-'+bid+'" x="'+ff(x)+'" y="'+ff(y-sh/2)+'" width="'+ff(w)+'" height="'+ff(sh)+'"/><use href="#ns-'+did+'" x="'+ff(cx-ds/2)+'" y="'+ff(y-ds/2)+'" width="'+ff(ds)+'" height="'+ff(ds)+'"/>';return '<g opacity="'+alpha+'">'+B+'</g>'}const k=cr?'crit':fl?'flick':'long',c=TC[k];return`<g opacity="${alpha}"><rect x="${x-1}" y="${y-5.5}" width="${w+2}" height="11" rx="3.6" fill="${c[3]}" opacity=".5"/><rect x="${x}" y="${y-4.5}" width="${w}" height="9" rx="3" fill="${c[0]}"/><rect x="${x+1.5}" y="${y-3.9}" width="${w-3}" height="3.2" rx="1.6" fill="${c[1]}"/><rect x="${x+1.5}" y="${y+1.7}" width="${w-3}" height="2.4" rx="1.2" fill="${c[2]}"/>${gem(x+w/2,y,k)}</g>`};
             /* SUS directional は「見た目のフリック」と「スライド曲線制御」を兼ねる。
                1/3/4 は表示するフリック矢印、2/5/6 はスライド区間の曲線制御。
                曲線制御の方向値を、画面上の矢印角度として誤表示しない。 */
@@ -737,6 +737,7 @@
             const SB={long:['107,229,188','168,235,200'],crit:['234,226,153','238,233,180']},SBN=8;let SL_N=0;
             const slideArt=(es,ring,cr,sl)=>{
              if(sl<=0)return'';
+             if(window.__NSP&&window.__NSP.ready&&window.__NSP.grad){const rr=v=>+v.toFixed(2),oo=v=>+v.toFixed(3),LA=e=>e.left,RA=e=>e.right,run=A=>{let d='M'+rr(A(es[0])[0][0])+','+rr(A(es[0])[0][1]);for(const e of es){const p=A(e);d+='C'+rr(p[1][0])+','+rr(p[1][1])+' '+rr(p[2][0])+','+rr(p[2][1])+' '+rr(p[3][0])+','+rr(p[3][1])}return d},edge=run(LA)+run(RA),cid='sb'+SL_N++;return '<path d="'+edge+'" fill="none" stroke="rgb(0,10,20)" stroke-opacity="'+oo(.55*sl)+'" stroke-width="1.2"/><path d="'+ring+'" fill="url(#ns-grad-'+(cr?'crit':'long')+')" fill-opacity="'+oo(sl)+'"/><clipPath id="'+cid+'"><path d="'+ring+'"/></clipPath><path d="'+edge+'" fill="none" stroke="#fff" stroke-opacity="'+oo(.3*sl)+'" stroke-width="2" clip-path="url(#'+cid+')"/>'}
              const[c0,c1]=SB[cr?'crit':'long'],r=v=>+v.toFixed(2),o=v=>+v.toFixed(3),id='sb'+SL_N++,pt=p=>r(p[0])+','+r(p[1]),L=e=>e.left,R=e=>e.right;
              const run=A=>{let d='M'+pt(A(es[0])[0]);for(const e of es){const p=A(e);d+=`C${pt(p[1])} ${pt(p[2])} ${pt(p[3])}`}return d};
              const band=(A,B,q)=>{const M=es.map(e=>{const a=A(e),b=B(e);return a.map((p,i)=>[p[0]+(b[i][0]-p[0])*q,p[1]+(b[i][1]-p[1])*q])});
@@ -747,6 +748,29 @@
              return s+`<clipPath id="${id}"><path d="${ring}"/></clipPath><path d="${edge}" fill="none" stroke="#fff" stroke-opacity="${o(.3*sl)}" stroke-width="2" clip-path="url(#${id})"/>`;
             };
             /* ---------- レイアウト & SVG生成 ---------- */
+
+            /* ---------- ノーツ素材（実機アトラス）: notes.png を切り出して SVG 部品から使う ---------- */
+            window.__NSP={ready:false,grad:false,defs:'',uri:{}};window.__NSP_IMG=0;
+            {const NSP_R=[[354,1100,354,186],[0,1286,354,186],[872,658,354,186],[708,1100,354,186],[958,472,354,186],[752,858,354,186],[0,1100,354,186],[1486,1016,158,160],[1470,856,158,160],[1310,1334,104,112],[1414,1334,104,112],[1518,1334,102,102],[1454,1176,144,158],[1294,856,176,160],[1106,856,188,174],[354,1286,228,182],[1062,1044,248,194],[1332,432,298,212],[1332,0,312,216],[376,858,376,242],[958,236,374,236],[514,270,444,270],[436,600,436,258],[0,0,514,300],[1310,1176,144,158],[1310,1016,176,160],[810,1286,188,174],[582,1286,228,182],[1062,1238,248,194],[1312,644,298,212],[1332,216,312,216],[0,858,376,242],[958,0,374,236],[514,0,444,270],[0,600,436,258],[0,300,514,300],[753,1044,10,40]];
+            const NSP_N=['b-crit','b-flick','b-long','b-tap','b-fr','b-frc','b-frf','am-c','am','af-c','af','af-f'];
+            const NSP_A={s:[12,14,16,18,20,22],d:[25,27,17,19,21,23],cs:[24,26,28,30,32,34],cd:[13,15,29,31,33,35]};
+            const nspLoad=u=>new Promise((ok,ng)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=ng;i.src=u});
+            const nspTry=async base=>{for(const u of[base,'https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/'+base]){try{return await nspLoad(u)}catch(e){}}return null};
+            (async()=>{const img=await nspTry('assets/notes/01/notes.png');if(!img)return;
+             const cv=document.createElement('canvas'),cx2=cv.getContext('2d');
+             const crop=r=>{cv.width=r[2];cv.height=r[3];cx2.clearRect(0,0,r[2],r[3]);cx2.drawImage(img,r[0],r[1],r[2],r[3],0,0,r[2],r[3]);return cv.toDataURL('image/webp',.92)};
+             let defs='<defs>';const add=(id,r)=>{const u=crop(r);window.__NSP.uri[id]=u;defs+='<symbol id="ns-'+id+'" viewBox="0 0 '+r[2]+' '+r[3]+'" preserveAspectRatio="none"><image href="'+u+'" width="'+r[2]+'" height="'+r[3]+'"/></symbol>'};
+             NSP_N.forEach((n,i)=>add(n,NSP_R[i]));
+             for(const k in NSP_A)NSP_A[k].forEach((ri,i)=>add('a-'+k+(i+1),NSP_R[ri]));
+             const ln=await nspTry('assets/notes/01/longNoteLine.png');
+             if(ln){try{const c2=document.createElement('canvas');c2.width=306;c2.height=16;const g2=c2.getContext('2d');g2.drawImage(ln,0,0);
+              const grad=(id,y)=>{let s='<linearGradient id="ns-'+id+'">';for(let i=0;i<=12;i++){const d=g2.getImageData(Math.round(i/12*305),y,1,1).data;s+='<stop offset="'+(i/12)+'" stop-color="rgb('+d[0]+','+d[1]+','+d[2]+')" stop-opacity="'+(d[3]/255).toFixed(3)+'"/>'}return s+'</linearGradient>'};
+              defs+=grad('grad-long',5)+grad('grad-crit',13);window.__NSP.grad=true}catch(e){}}
+             defs+='</defs>';window.__NSP.defs=defs;window.__NSP.ready=true;
+             try{const lg=document.getElementById('legend');if(lg&&typeof __LEG_BUILD==='function')lg.innerHTML=__LEG_BUILD()}catch(e){}
+             try{if(document.getElementById('pv')&&typeof drawPv==='function')drawPv()}catch(e){}
+             try{if(document.getElementById('chart')&&typeof drawChart==='function')drawChart()}catch(e){}
+            })()}
             function render(S,ppb,BPC,R0=0,RN=0,settings={}){
              const slideOpacity=Math.max(0,Math.min(1,Number(settings.slideOpacity??.34)));
              const mr=s=>settings.mirror?`<g transform="translate(${2*PL+12*LW} 0) scale(-1 1)">${s}</g>`:s;
@@ -914,12 +938,12 @@
               });
               const inner=`<clipPath id="k${c}"><rect x="0" y="${TOP}" width="${COLW}" height="${colH}"/></clipPath>${g}<g clip-path="url(#k${c})">${mr(o.p.join(''))}</g>${mr(o.n.reverse().join('')+o.a.reverse().join(''))}<text x="${PL}" y="16" font-size="11" fill="#a9bdd8">小節 ${b0}–${b1-1}</text><text x="${PL+12*LW+8}" y="16" font-size="9"><tspan fill="#d4a94e">BPM</tspan> <tspan fill="#63a9db">速度</tspan> <tspan fill="#a98bd0">演出</tspan></text>`;cs.push(inner);out+=`<g transform="translate(${ox} 0)">${inner}</g>`}
              const mg=settings.noMargin?0:1,px=mg*COLW,py=mg*(len[m0]||4)*ppb,TW=nc*COLW+2*px,TH=H+2*py;
-             return{svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${TW}" height="${TH}" viewBox="0 0 ${TW} ${TH}" font-family="system-ui,sans-serif"><rect width="${TW}" height="${TH}" fill="#111827"/><g transform="translate(${px} ${py})">${out}</g></svg>`,cnt,combo,total,cs,w:COLW,h:H,W:TW,H:TH,ml:px,mb:py};
+             return{svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${TW}" height="${TH}" viewBox="0 0 ${TW} ${TH}" font-family="system-ui,sans-serif"><rect width="${TW}" height="${TH}" fill="#111827"/><g transform="translate(${px} ${py})">${out}</g>${window.__NSP&&window.__NSP.ready?window.__NSP.defs:''}</svg>`,cnt,combo,total,cs,w:COLW,h:H,W:TW,H:TH,ml:px,mb:py};
             }
             /* 凡例：対応する通常/クリティカルは必ず同じ行にペアで並べ(幅が足りない時だけ折返し)、
                図形は全て同じ大きさの枠(64×52)の中央に揃え、名前は図の真下に置く。 */
-            const LEG=(()=>{
-             const IW=64,IH=52,ic=(g,cx,cy)=>`<svg width="${IW}" height="${IH}" viewBox="${cx-IW/2} ${cy-IH/2} ${IW} ${IH}" aria-hidden="true">${g}</svg>`;
+            const __LEG_BUILD=()=>{
+             window.__NSP_IMG=1;const IW=64,IH=52,ic=(g,cx,cy)=>`<svg width="${IW}" height="${IH}" viewBox="${cx-IW/2} ${cy-IH/2} ${IW} ${IH}" aria-hidden="true">${g}</svg>`;
              const tp=k=>ic(body(1,24,38,k),20,24),
                    fk=k=>ic(body(1,24,38,k)+arrow(20,24,2,0,k==='crit'?'crit':'flick'),20,13.5),
                    tr=(cr,fl)=>ic(trc(4,37,38,cr,fl)+(fl?arrow(23,37,1,0,cr?'crit':'flick'):''),23,fl?28.7:37),
@@ -935,8 +959,8 @@
                [['トレースフリックノーツ',tr(0,1)],['クリティカルフリックトレースノーツ',tr(1,1)]],
                [['ガイドノーツ',gd(0)],['クリティカルガイドノーツ',gd(1)]]
              ];
-             return`<div class="lg">${P.map(p=>`<div class="lgp">${p.map(([n,s])=>`<div class="lgc"><span class="lgv">${s}</span><span class="lgn">${wb(n)}</span></div>`).join('')}</div>`).join('')}</div>`;
-            })();
+             window.__NSP_IMG=0;return`<div class="lg">${P.map(p=>`<div class="lgp">${p.map(([n,s])=>`<div class="lgc"><span class="lgv">${s}</span><span class="lgn">${wb(n)}</span></div>`).join('')}</div>`).join('')}</div>`;
+            };const LEG=__LEG_BUILD();
             async function decodeResponse(response){
              let buf=await response.arrayBuffer();
              if(buf.byteLength>2&&new Uint8Array(buf)[0]===0x1f&&new Uint8Array(buf)[1]===0x8b&&'DecompressionStream'in window){
@@ -4586,6 +4610,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
                if(hi<tp-30||lo>JY+4)continue;
                const sg=fSegs(c,ys);
                if(c.deco)pg.push([fRibbon(sg,0,1),c.cr?'url(#gGc)':'url(#gGl)',gd]);
+               else if(D.nsp){pp.push([fEdges(sg,0),'none',1,'rgb(0,10,20)',1.6,.55*sl],[fRibbon(sg,0,1),c.cr?'url(#ns-grad-crit)':'url(#ns-grad-long)',sl],[fEdges(sg,.6),'none',1,'rgb(255,255,255)',1.2,.3*sl])}
                else{const[c0,c1]=FBODY[c.cr?1:0];
                 pp.push([fEdges(sg,0),'none',1,'rgb(0,10,20)',1.6,.55*sl],[fRibbon(sg,0,1),c0,.85*sl]);
                 let pv=0;for(const[f,m]of FBAND){pp.push([fRibbon(sg,0,f)+fRibbon(sg,1-f,1),c1,(1-(1-m)/(1-pv))*sl]);pv=m}
@@ -4607,6 +4632,20 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
                 ノーツ速度・ソフラン・ミラー・各透明度は譜面再生画面の設定をそのまま使う。 */
              let view=pf.vw==='game'?'game':'flat';
              let gx,bgK='';const gcv=$('gview'),gx0=gx=gcv.getContext('2d'),bgc=$('gbg'),bgx=bgc.getContext('2d'),KAP=45*Math.log(1.06),GF=.0155,GAR=1920/1342,PI=Math.PI,FK=D.fk;
+             /* ---- ノーツ素材（実機アトラス）: ゲーム画面の Canvas 描画でも実スプライトを使う ---- */
+             const NSR=[[354,1100,354,186],[0,1286,354,186],[872,658,354,186],[708,1100,354,186],[958,472,354,186],[752,858,354,186],[0,1100,354,186],[1486,1016,158,160],[1470,856,158,160],[1310,1334,104,112],[1414,1334,104,112],[1518,1334,102,102],[1454,1176,144,158],[1294,856,176,160],[1106,856,188,174],[354,1286,228,182],[1062,1044,248,194],[1332,432,298,212],[1332,0,312,216],[376,858,376,242],[958,236,374,236],[514,270,444,270],[436,600,436,258],[0,0,514,300],[1310,1176,144,158],[1310,1016,176,160],[810,1286,188,174],[582,1286,228,182],[1062,1238,248,194],[1312,644,298,212],[1332,216,312,216],[0,858,376,242],[958,0,374,236],[514,0,444,270],[0,600,436,258],[0,300,514,300],[753,1044,10,40]];
+             const NSAI={s:[12,14,16,18,20,22],d:[25,27,17,19,21,23],cs:[24,26,28,30,32,34],cd:[13,15,29,31,33,35]};
+             const NSI=new Image(),NSL=new Image();let NSOK=false,NSLOK=false;
+             {const u1=['assets/notes/01/notes.png','https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/assets/notes/01/notes.png'];let i1=0;NSI.onload=()=>{NSOK=true;inv()};NSI.onerror=()=>{if(++i1<u1.length)NSI.src=u1[i1]};NSI.src=u1[0];
+              const u2=['assets/notes/01/longNoteLine.png','https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/assets/notes/01/longNoteLine.png'];let i2=0;NSL.onload=()=>{NSLOK=true;inv()};NSL.onerror=()=>{if(++i2<u2.length)NSL.src=u2[i2]};NSL.src=u2[0]}
+             const triTex=(img,sx,sy,sw,sh,p0,p1,p2,u0,v0,u1,v1,u2,v2)=>{gx.save();gx.beginPath();gx.moveTo(p0[0],p0[1]);gx.lineTo(p1[0],p1[1]);gx.lineTo(p2[0],p2[1]);gx.closePath();gx.clip();
+              const den=(u1-u0)*(v2-v0)-(u2-u0)*(v1-v0);if(!den){gx.restore();return}
+              const a=((p1[0]-p0[0])*(v2-v0)-(p2[0]-p0[0])*(v1-v0))/den,c=((p2[0]-p0[0])*(u1-u0)-(p1[0]-p0[0])*(u2-u0))/den,e=p0[0]-a*u0-c*v0,
+              b=((p1[1]-p0[1])*(v2-v0)-(p2[1]-p0[1])*(v1-v0))/den,d=((p2[1]-p0[1])*(u1-u0)-(p1[1]-p0[1])*(u2-u0))/den,f=p0[1]-b*u0-d*v0;
+              gx.setTransform(DPR*a,DPR*b,DPR*c,DPR*d,DPR*e,DPR*f);gx.drawImage(img,sx,sy,sw,sh,0,0,1,1);gx.restore()};
+             const texQuad=(img,rg,P)=>{triTex(img,rg[0],rg[1],rg[2],rg[3],P[0],P[1],P[3],0,0,1,0,0,1);triTex(img,rg[0],rg[1],rg[2],rg[3],P[1],P[2],P[3],1,0,1,1,0,1)};
+             const segTex=(rg,P)=>{const ax=P[1][0]-P[0][0],ay=P[1][1]-P[0][1],bx=P[3][0]-P[0][0],by=P[3][1]-P[0][1];gx.save();gx.beginPath();gx.moveTo(P[0][0],P[0][1]);gx.lineTo(P[1][0],P[1][1]);gx.lineTo(P[2][0],P[2][1]);gx.lineTo(P[3][0],P[3][1]);gx.closePath();gx.clip();gx.setTransform(DPR*ax,DPR*ay,DPR*bx,DPR*by,DPR*P[0][0],DPR*P[0][1]);gx.drawImage(NSL,rg[0],rg[1],rg[2],rg[3],0,0,1,1);gx.restore()};
+
              /* ノーツ表示開始位置（レーン奥から ap%）→ 奥行きz。ap%は「画面上のレーンの縦方向（投影後のy）」での割合で、3D上の奥行きzの割合ではない。
                 開始位置のy＝最奥のy＋ap%×(判定線のy−最奥のy)。画面yは縮尺sに比例（y=yV+(yJ-yV)*s）するので、その位置の縮尺は s=SF+f*(1-SF)、奥行きは z=-ln(s)/KAP。
                 ap=0 で z=ZF（最奥）、ap=100 で z=0（判定線）。奥ほど遠近で縮むため、例えば ap=30 の位置は奥行きz上では最奥から約60%進んだ所になる。 */
@@ -4645,7 +4684,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
              /* フリック矢印は形が(種類・幅・向き)と拡大率だけで決まる→縮尺ごとに1度だけ描いて drawImage で使い回す（宝石と同じ縮尺バケット）。
                 メモリ上限を超えたら作り直し、大きすぎる矢印は従来どおり直接描く */
              const AC=new Map();let acPx=0;
-             const flick=(x,y,u,w,ang,k)=>{
+             const flick=(x,y,u,w,ang,k)=>{if(NSOK){const wc=Math.max(1,Math.min(6,Math.trunc(w))),diag=Math.abs(ang)>.1,right=ang>0,bias=diag?(right?1:-1)*u/4:0,fh=1.5*u,h=fh*Math.pow((wc+3)/3,.75),iw=fh*1.5*Math.pow((wc+.5)/3,.75),rg=NSR[NSAI[diag?(k==='crit'?'cd':'d'):(k==='crit'?'cs':'s')][wc-1]],sc=Math.min(iw/rg[2],h/rg[3]);gx.save();if(right){gx.translate(2*(x+bias),0);gx.scale(-1,1)}gx.drawImage(NSI,rg[0],rg[1],rg[2],rg[3],x-iw/2+bias+(iw-rg[2]*sc)/2,y+u/4-h+(h-rg[3]*sc)/2,rg[2]*sc,rg[3]*sc);gx.restore();return}
               const wc=Math.max(1,Math.min(6,Math.trunc(w))),diag=Math.abs(ang)>.1,right=ang>0,qb=Math.max(0,Math.round(Math.log(Math.max(u,1))/.0583)),key=k+wc+(diag?right?'R':'L':'V')+qb;
               let sp=AC.get(key);
               if(!sp){
@@ -4689,7 +4728,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
               const pxv=Sw/1920,ringOf=(L,R)=>{const g=RG;let n=0;for(let i=0;i<L.length;i++)g[n++]=L[i];for(let i=R.length-1;i>=0;i--)g[n++]=R[i];g.length=n;return g};
               const strokeEdges=(L,R)=>{for(let e=0;e<2;e++){const E=e?R:L;gx.beginPath();for(let i=0;i<E.length;i++)i?gx.lineTo(E[i][0],E[i][1]):gx.moveTo(E[i][0],E[i][1]);gx.stroke()}};
               const bandPoly=(L,R,f,right)=>{const n=L.length;gx.beginPath();for(let i=0;i<n;i++){const p=right?R[i]:L[i];i?gx.lineTo(p[0],p[1]):gx.moveTo(p[0],p[1])}for(let i=n-1;i>=0;i--){const p=right?R[i]:L[i],q=right?L[i]:R[i];gx.lineTo(p[0]+(q[0]-p[0])*f,p[1]+(q[1]-p[1])*f)}gx.closePath()};
-              const slideBody=(L,R,cr)=>{
+              const slideBody=(L,R,cr)=>{if(NSLOK){gx.lineWidth=Math.max(1.4,2.6*pxv);gx.strokeStyle='rgba(0,10,20,'+.55*sl+')';strokeEdges(L,R);const rg=cr?[0,13,306,2]:[0,5,306,2];gx.save();gx.globalAlpha=sl;for(let i=0;i+1<L.length;i++){const L2=[L[i+1][0]+(L[i+1][0]-L[i][0])*.06,L[i+1][1]+(L[i+1][1]-L[i][1])*.06],R2=[R[i+1][0]+(R[i+1][0]-R[i][0])*.06,R[i+1][1]+(R[i+1][1]-R[i][1])*.06];texQuad(NSL,rg,[L[i],R[i],R2,L2])}gx.restore();gx.save();poly(ringOf(L,R));gx.clip();gx.lineWidth=Math.max(1.6,3*pxv);gx.strokeStyle='rgba(255,255,255,'+.3*sl+')';strokeEdges(L,R);gx.restore();return}
                const[c0,c1]=BODY[cr?'crit':'long'];
                gx.lineWidth=Math.max(1.4,2.6*pxv);gx.strokeStyle='rgba(0,10,20,'+.55*sl+')';strokeEdges(L,R); /* 外側の暗線（内側の半分は本体で隠れる） */
                poly(ringOf(L,R));gx.fillStyle='rgba('+c0+','+.85*sl+')';gx.fill();
@@ -4816,14 +4855,14 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
                poly([[x,y-t],[x+w,y],[x,y+f]]);gx.fillStyle=g;gx.fill(); /* 右面 */
                gx.lineWidth=Math.max(1,.05*u);gx.strokeStyle=c.e0;gx.beginPath();gx.moveTo(x-w,y);gx.lineTo(x,y+f);gx.stroke();
                gx.strokeStyle=c.e1;gx.beginPath();gx.moveTo(x,y+f);gx.lineTo(x+w,y);gx.stroke()};
-              const gemAt=(lp,z,k)=>{const p=pj(lp,z),u=LU*p[2],qb=Math.max(0,Math.round(Math.log(Math.max(u,1))/.0583)),row=GC[k]||GC.long;let sp=row[qb];
+              const gemAt=(lp,z,k)=>{if(NSOK){const p=pj(lp,z),u=LU*p[2],rg=NSR[k==='crit'?7:k==='flick'?11:8];gx.drawImage(NSI,rg[0],rg[1],rg[2],rg[3],p[0]-.44*u,p[1]-.405*u,.88*u,.88*u*rg[3]/rg[2]);return}const p=pj(lp,z),u=LU*p[2],qb=Math.max(0,Math.round(Math.log(Math.max(u,1))/.0583)),row=GC[k]||GC.long;let sp=row[qb];
                if(!sp){const ub=Math.exp(qb*.0583),R=Math.ceil(.75*ub)+2,cv=document.createElement('canvas'),c2=cv.getContext('2d'),pg=gx;cv.width=cv.height=Math.ceil(2*R*DPR);c2.setTransform(DPR,0,0,DPR,0,0);c2.lineJoin=c2.lineCap='round';gx=c2;try{gemDraw(R,R,ub,k)}finally{gx=pg}row[qb]=sp={cv,R,ub}}
                const q=u/sp.ub,r=sp.R*q;gx.drawImage(sp.cv,p[0]-r,p[1]-r,2*r,2*r)};
               const arrows=ARRS;arrows.length=0;
               const note=(n,z)=>{
                const[ty,cr,ar]=n.m,tr=ty==='trace',lp0=n.x/LW-6+.06,lp1=lp0+n.w-.12,dz=tr?.0125:.0165;
                const a=pj(lp0,z-dz),b=pj(lp1,z-dz),c=pj(lp1,z+dz),d=pj(lp0,z+dz),u=LU*Math.exp(-KAP*z),hgt=a[1]-d[1],P=[a,b,c,d];
-               const kk=ty==='dmg'?'dmg':cr?'crit':ty==='flick'?'flick':ty==='long'?'long':tr?(ar!=null?'flick':'long'):'tap',pal=PAL[kk],r=Math.min(hgt*.26,.22*u);
+               const kk=ty==='dmg'?'dmg':cr?'crit':ty==='flick'?'flick':ty==='long'?'long':tr?(ar!=null?'flick':'long'):'tap',pal=PAL[kk],r=Math.min(hgt*.26,.22*u);if(NSOK){const rg=NSR[tr?(cr?5:ar!=null?6:4):(kk==='crit'?0:kk==='flick'?1:kk==='long'?2:3)];texQuad(NSI,rg,P);if(tr)gemAt((lp0+lp1)/2,z,cr?'crit':ar!=null?'flick':'long');if(ar!=null){const o=ARW[aI++]||(ARW[aI-1]={});o.z=z;o.x=(a[0]+b[0]+c[0]+d[0])/4;o.y=(a[1]+b[1]+c[1]+d[1])/4;o.u=u;o.w=n.w;o.ang=sg*ar;o.k=cr?'crit':'flick';arrows.push(o)}return}
                const Lp=(p,q)=>{const x0=d[0]+(c[0]-d[0])*p,y0=d[1]+(c[1]-d[1])*p,x1=a[0]+(b[0]-a[0])*p,y1=a[1]+(b[1]-a[1])*p;return[x0+(x1-x0)*q,y0+(y1-y0)*q]}; /* p:左→右, q:奥→手前 */
                if(!tr){gx.save();gx.translate(0,.05*u);rpoly(P,r);gx.fillStyle='rgba(6,24,20,.4)';gx.fill();gx.restore()} /* 手前へ落ちる影 */
                rpoly(P,r);gx.lineWidth=(tr?.3:.14)*u;gx.strokeStyle='rgba('+pal[6]+','+(tr?.3:.2)+')';gx.stroke(); /* 外側のにじみ（トレース以外は細く） */
@@ -4946,7 +4985,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
              if(!D.nodes.length&&!D.chains.length)throw new Error('再生できるノーツがありません');
              D.pf=playPrefs();
              const{sprites,...data}=D,si=songInfo,tabTitle=esc(songLabel||S.meta.TITLE||'譜面');data.susText=sus;
-             data.mid=si&&si.id!=null?si.id:null;data.jk=si&&si.jk?String(si.jk):null;data.fk={V:FK_V,D:FK_D,C:FK_C,G:FK_G,T:FK_T,O:FK_O}; /* ゲーム画面のフリック矢印も、譜面表示と同じ実機の矢印データで描く */data.fs=si&&+si.fs>0?+si.fs:0;const json=JSON.stringify(data).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+             data.mid=si&&si.id!=null?si.id:null;data.jk=si&&si.jk?String(si.jk):null;data.nsp=window.__NSP&&window.__NSP.ready?1:0;data.fk={V:FK_V,D:FK_D,C:FK_C,G:FK_G,T:FK_T,O:FK_O}; /* ゲーム画面のフリック矢印も、譜面表示と同じ実機の矢印データで描く */data.fs=si&&+si.fs>0?+si.fs:0;const json=JSON.stringify(data).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
              const songHTML=`<div class="song">${si?`<img src="${esc(((IMG.done.get(si.jk)||{}).src)||si.jk)}" alt="" referrerpolicy="no-referrer">`:''}<div><b>${esc(si?si.title:(S.meta.TITLE||'譜面'))}</b>${si?`<span class="lv" style="background:${DCOL[si.diff]||'#74829f'}">${esc(si.diff.toUpperCase())}${si.level!=null?` Lv${esc(si.level)}`:''}</span>`:''}</div></div>`;
              w.document.write(`<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>▶ ${tabTitle}</title>
              <style>
@@ -4985,7 +5024,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
               <div class="control"><label class="cap" for="seVol">ノーツ音の音量 <b id="sevolv"></b></label><input id="seVol" type="range" min="0" max="100"></div>
               <div class="control"><label class="cap" for="bgB">背景の明るさ <b id="bgbv"></b></label><input id="bgB" type="range" min="20" max="150" step="5"></div>
              </section>
-             <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
+             <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}${window.__NSP&&window.__NSP.ready?window.__NSP.defs:''}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
               <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
              <footer>
               <div class="tl"><span id="tcur">0:00.0</span><input id="seek" type="range" aria-label="再生位置"><span id="tend"></span></div>
