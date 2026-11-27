@@ -1076,7 +1076,7 @@
             const pref=clamp;
             const vs=()=>({slideOpacity:cfg.sl/100,guideOpacity:cfg.gd/100,mirror:cfg.mirror});
             /* 譜面再生の設定。再生画面（openPlayer）と設定画面の両方がこれを読む（スライド/ガイドの透明度とミラーは「表示の設定」と共通） */
-            const playPrefs=()=>{const pp=loadPrefs().player||{},ab=pp.apb!=null?pp.apb:pp.ap!=null?100-pp.ap:null /* 新：apb＝レーン奥からの%。旧設定 ap（見える範囲%・100=全体）は 100-ap に読み替え */;return{spd:Math.round(pref(pp.spd,6,1,12)*100)/100,rate:Math.round(pref(pp.rate,1,.25,1)*100)/100,ap:Math.round(pref(ab,0,0,100)),sf:pp.sf==null?true:!!pp.sf,rk:pp.rk==='keep'?'keep':'all',sl:vs().slideOpacity,gd:vs().guideOpacity,mirror:vs().mirror,ao:Math.round(pref(pp.aoff,0,-3,3)*100)/100,vol:pref(pp.vol,1,0,1),dv:pp.dv==='virtual_singer'?'virtual_singer':'sekai',vw:pp.vw==='game'?'game':'flat',skin:pp.skin==='02'?'02':'01',se:(pp.se==='02'||pp.se==='off')?pp.se:'01',seVol:pref(pp.seVol,.9,0,1),bgb:pref(pp.bgb,1,.2,1.5),fxp:pp.fxp===1?1:0}};
+            const playPrefs=()=>{const pp=loadPrefs().player||{},ab=pp.apb!=null?pp.apb:pp.ap!=null?100-pp.ap:null /* 新：apb＝レーン奥からの%。旧設定 ap（見える範囲%・100=全体）は 100-ap に読み替え */;return{spd:Math.round(pref(pp.spd,6,1,12)*100)/100,rate:Math.round(pref(pp.rate,1,.25,1)*100)/100,ap:Math.round(pref(ab,0,0,100)),sf:pp.sf==null?true:!!pp.sf,rk:pp.rk==='keep'?'keep':'all',sl:vs().slideOpacity,gd:vs().guideOpacity,mirror:vs().mirror,ao:Math.round(pref(pp.aoff,0,-3,3)*100)/100,vol:pref(pp.vol,1,0,1),dv:pp.dv==='virtual_singer'?'virtual_singer':'sekai',vw:pp.vw==='game'?'game':'flat',skin:pp.skin==='02'?'02':'01',se:(pp.se==='02'||pp.se==='off')?pp.se:'01',seVol:pref(pp.seVol,.9,0,1),bgb:pref(pp.bgb,1,.2,1.5),fxp:pp.fxp===1?1:0,stgc:pref(pp.stgc,0,0,1)}};
             const st=t=>{const e=$('#st');e.textContent=t;e.hidden=!t;clearTimeout(stT);if(t&&!/…$/.test(t))stT=setTimeout(()=>e.hidden=true,6000)};
             const jget=async u=>{try{const r=await fetch(MASTER+u);if(!r.ok)throw 0;kcM('master/'+u,r.clone());return await r.json()}catch(e){const c=await CC.get('master/'+u);if(c)return c.json();throw e}}; /* 通信優先・失敗時はキャッシュ */
             const fd=ms=>{if(!ms)return'-';const d=new Date(ms);return`${d.getFullYear()}/${pad(d.getMonth()+1,2)}/${pad(d.getDate(),2)}`};
@@ -2359,7 +2359,7 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
   class Renderer {
     constructor(canvas) {
       this.canvas = canvas;
-      const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' });
+      const gl = canvas.getContext('webgl2', { alpha: false, antialias: true, depth: false, stencil: false, powerPreference: 'high-performance' });
       if (!gl) throw new Error('WebGL2 required');
       this.gl = gl;
       this.ortho = this.program(VS_ORTHO, FS_TEX, ['uWorldScale', 'uScreenBias', 'uTex0', 'uTex1', 'uTex2', 'uTex3']);
@@ -2721,7 +2721,7 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
     drawStagePass(cfg) {
       if (!this.stageTexture) return;
       const gl = this.gl;
-      // stage cover: translucent black over the stage rect first
+      // (stage cover is clipped in render() and drawn by drawCoverPass)
       gl.useProgram(this.img.p);
       gl.uniform2f(this.img.u.uRef, this.ref[0], this.ref[1]);
       gl.uniform1i(this.img.u.uTex, 0);
@@ -2742,11 +2742,6 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
         gl.bindVertexArray(null);
       };
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      if (cfg.stageCover > 0) {
-        // 1x1 black texture via stage texture is wrong; use tint on stage tex with alpha 0 skip:
-        // draw cover using the stage texture itself darkened is not possible; use a solid pass:
-        this.drawSolidQuad(cx, cy, hw, hh, 0, 0, 0, cfg.stageCover * 0.9);
-      }
       quad([1, 1, 1, cfg.stageOpacity], this.stageTexture);
     }
     drawSolidQuad(cx, cy, hw, hh, r, g, b, a) {
@@ -2888,6 +2883,42 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
       gl.bindVertexArray(null);
     }
 
+    // Stage cover (native drawStageCover + drawStageCoverDecoration): a
+    // black band of the stage texture's top strip from the stage top down
+    // to the cover boundary, plus the simultaneous-line sprite along it.
+    drawCoverPass(cfg) {
+      const gl = this.gl;
+      const cover = cfg.stageCover || 0;
+      const cb = this.coverWorld;
+      if (!cb) return;
+      if (this.stageTexture && (cfg.stageOpacity == null || cfg.stageOpacity > 0.001)) {
+        const yTopC = stageQuad.top - TARGET_H / 2;
+        const yBotC = TARGET_H * HEIGHT_RATIO * cb - TARGET_H * TOP_RATIO;
+        const vBot = clamp((yBotC - yTopC) / stageQuad.h, 0, 1);
+        const x0 = stageQuad.left - TARGET_W / 2, x1 = x0 + stageQuad.w;
+        gl.useProgram(this.img.p);
+        gl.uniform2f(this.img.u.uRef, this.ref[0], this.ref[1]);
+        gl.uniform1i(this.img.u.uTex, 0);
+        gl.uniform4f(this.img.u.uTint, 0, 0, 0, cfg.stageOpacity == null ? 1 : cfg.stageOpacity);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.stageTexture);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        const verts = new Float32Array([
+          x0, yTopC, 0, 0, x1, yTopC, 1, 0, x1, yBotC, 1, vBot,
+          x0, yTopC, 0, 0, x1, yBotC, 1, vBot, x0, yBotC, 0, vBot]);
+        gl.bindVertexArray(this.imgVao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.imgVbo);
+        gl.bufferData(gl.ARRAY_BUFFER, verts, gl.DYNAMIC_DRAW);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.bindVertexArray(null);
+      }
+      const margin = 0.12 * (1 - cover);
+      const quad = scaleQuad(applyTransform(TR.SIMULT, perspPos(-6 - margin, 6 + margin, 1 + NOTE_HEIGHT, 1 - NOTE_HEIGHT)), cb);
+      this.beginFrame();
+      this.pushSpriteQuad(quad, NOTE_SPRITES[SPR.SIMULTANEOUS], 0, 1, 1, 1, 1, -1);
+      this.flushQuads();
+    }
+
     render(state) {
       const { score, drawData, cfg, nowSec, nowScaled, fx } = state;
       this.score = score; this.drawData = drawData;
@@ -2896,6 +2927,18 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
       gl.clear(gl.COLOR_BUFFER_BIT);
       this.drawBackgroundPass(cfg);
       this.drawStagePass(cfg);
+      // Stage cover: clip all runtime drawing above the cover boundary
+      // (native applyRuntimeStageCoverScissor); the band itself is drawn
+      // after the runtime passes by drawCoverPass.
+      const cover = cfg.stageCover || 0;
+      this.coverWorld = 0;
+      if (cover > 0.001) {
+        const cb = STAGE_LANE_TOP / STAGE_LANE_HEIGHT + cover * (1 - STAGE_LANE_TOP / STAGE_LANE_HEIGHT);
+        this.coverWorld = cb;
+        const pyFrac = (this.ref[1] / 2 - TARGET_H * TOP_RATIO + TARGET_H * HEIGHT_RATIO * cb) / this.ref[1];
+        gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(0, 0, this.canvas.width, Math.max(0, Math.round(this.canvas.height * (1 - pyFrac))));
+      }
       this.fxOpacity = cfg.effectOpacity != null ? cfg.effectOpacity : 1;
       this.fxQuadsUnder.length = 0;
       this.fxQuadsOver.length = 0;
@@ -2909,6 +2952,7 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
       this.flushQuads();
       if (fx) fx.emitOver(this, nowSec);
       this.flushFx(this.fxQuadsOver);
+      if (cover > 0.001) { gl.disable(gl.SCISSOR_TEST); this.drawCoverPass(cfg); }
     }
   }
 
@@ -2939,16 +2983,39 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
   const unlerp = (a, b, v) => (b - a) === 0 ? 0 : (v - a) / (b - a);
   const clamp = (v, lo, hi) => v < lo ? lo : (v > hi ? hi : v);
 
-  // ---- RNG (RandN equivalent; visual parity only) -------------------------
-  function RandN(seed) { this.s = (seed >>> 0) || 0x9e3779b9; }
-  RandN.prototype.next = function () {
-    let t = (this.s += 0x6D2B79F5) >>> 0;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  // ---- RNG (ported from mmw_port/Utilities.cpp) ---------------------------
+  // RandN: XorShift128; setSeed expands the seed with the MT multiplier
+  // 1812433253. nextFloat() = 1 - nextFloatRange(0, 1); nextFloatRange uses
+  // ((x << 9) / 0xFFFFFFFF) of the raw output, as in the native code.
+  function RandN(seed) { this.x = 0; this.y = 0; this.z = 0; this.w = 0; this.setSeed(seed || 0); }
+  RandN.prototype.setSeed = function (seed) {
+    this.x = seed >>> 0;
+    this.y = (Math.imul(1812433253, this.x) + 1) >>> 0;
+    this.z = (Math.imul(1812433253, this.y) + 1) >>> 0;
+    this.w = (Math.imul(1812433253, this.z) + 1) >>> 0;
   };
-  RandN.prototype.setSeed = function (seed) { this.s = (seed >>> 0) || 0x9e3779b9; };
-  const globalRandom = new RandN(1234567);
+  RandN.prototype.xorShift = function () {
+    const t = (this.x ^ (this.x << 11)) >>> 0;
+    this.x = this.y; this.y = this.z; this.z = this.w;
+    this.w = (this.w ^ (this.w >>> 19) ^ t ^ (t >>> 8)) >>> 0;
+    return this.w;
+  };
+  RandN.prototype.nextFloatRange = function (min, max) {
+    return (min - max) * Math.fround(((this.xorShift() << 9) >>> 0) / 4294967295) + max;
+  };
+  RandN.prototype.next = function () { return 1 - this.nextFloatRange(0, 1); };
+  RandN.prototype.nextUInt32 = function () { return this.xorShift(); };
+  // globalRandom (native Random): linear_congruential_engine<1812433253,
+  // 367, 2147483647> with uniform_real_distribution<double> evaluated as
+  // generate_canonical<53> ((d1 + d2 * R) / R^2), default seed 1. The LCG
+  // product exceeds 2^53, so the step uses BigInt (draws are rare).
+  function GlobalRandom() { this.s = 1; }
+  GlobalRandom.prototype.next = function () {
+    const draw = () => { this.s = Number((1812433253n * BigInt(this.s) + 367n) % 2147483647n); return this.s; };
+    return Math.fround((draw() + draw() * 2147483647) / (2147483647 * 2147483647));
+  };
+  GlobalRandom.prototype.setSeed = function (seed) { this.s = ((seed % 2147483647) + 2147483647) % 2147483647; };
+  const globalRandom = new GlobalRandom();
   const globalNext = () => globalRandom.next();
 
   // ---- MinMax / MinMaxColor evaluation (MinMax.cpp) ------------------------
@@ -3286,7 +3353,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
     start(time) {
       const ref = this.ref;
       if (ref.autoSeed) {
-        const seed = Math.floor(globalNext() * 4294967296);
+        const seed = Math.floor(globalNext() * 4294967295);
         this.rngInitial.setSeed(seed); this.rngShape.setSeed(seed);
         this.rngVelocity.setSeed(seed); this.rngSize.setSeed(seed);
       } else {
@@ -4180,7 +4247,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
       hitEvents = null; seIdx = 0;
       try { hitEvents = window.SekaiDraw.calculateHitEvents(score).filter(function (e) { return !e.auto; }); } catch (e) { hitEvents = null; }
     }
-    var cfg = { noteSpeed: 6, mirror: false, holdAlpha: 1, guideAlpha: 1, ap: 0, sf: true, rate: 1, rk: 'all', skin: '01', seSet: '01', seVolume: 0.9, backgroundBrightness: 1, fxProfile: 0 };
+    var cfg = { noteSpeed: 6, mirror: false, holdAlpha: 1, guideAlpha: 1, ap: 0, sf: true, rate: 1, rk: 'all', skin: '01', seSet: '01', seVolume: 0.9, backgroundBrightness: 1, fxProfile: 0, stageCover: 0 };
     var BASES = ['assets/', 'https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/assets/'];
     function loadImg(path) {
       return new Promise(function (resolve, reject) {
@@ -4463,7 +4530,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
           score: score, drawData: drawData, nowSec: now, nowScaled: nowScaled, fx: fx,
           cfg: {
             mirror: cfg.mirror, holdAlpha: cfg.holdAlpha, guideAlpha: cfg.guideAlpha,
-            backgroundBrightness: cfg.backgroundBrightness, stageCover: 0, stageOpacity: 1,
+            backgroundBrightness: cfg.backgroundBrightness, stageCover: cfg.stageCover || 0, stageOpacity: 1,
             flickAnimation: true, holdAnimation: true, simultaneousLine: true,
             apMin: a0 + (cfg.ap / 100) * (1 - a0),
           },
@@ -4564,14 +4631,14 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
               d+='L'+P(sg[n-1],3,fb);for(let i=n-1;i>=0;i--){const s=sg[i];d+='C'+P(s,2,fb)+' '+P(s,1,fb)+' '+P(s,0,fb)}return d+'Z'};
              const fEdges=(sg,o)=>{let d='';for(const e of[0,1]){const P=(s,k)=>fq(s[e][k][0]+(e?-o:o))+','+fq(s[e][k][1]);d+='M'+P(sg[0],0);for(const s of sg)d+='C'+P(s,1)+' '+P(s,2)+' '+P(s,3)}return d};
              /* ---- 状態 ---- */
-             const pf=D.pf;let spd=pf.spd,rate=pf.rate,sl=pf.sl,gd=pf.gd,mir=pf.mirror,pps=JY/TT(spd),ap=pf.ap,tp=0,rk=pf.rk,skin=pf.skin,seSet=pf.se,seVol=pf.seVol,bgB=pf.bgb,fxq=pf.fxp,cur=-LEAD,playing=false,last=0,need=true,raf=0,drag=false;const inv=()=>{need=true;if(!raf&&!document.hidden)raf=requestAnimationFrame(loop)};
+             const pf=D.pf;let spd=pf.spd,rate=pf.rate,sl=pf.sl,gd=pf.gd,mir=pf.mirror,pps=JY/TT(spd),ap=pf.ap,tp=0,rk=pf.rk,skin=pf.skin,seSet=pf.se,seVol=pf.seVol,bgB=pf.bgb,fxq=pf.fxp,stgc=pf.stgc,cur=-LEAD,playing=false,last=0,need=true,raf=0,drag=false;const inv=()=>{need=true;if(!raf&&!document.hidden)raf=requestAnimationFrame(loop)};
              const KEY='sekaiChartViewer.settings.v1';
              const FS=D.fs||0;let ao=pf.ao,vl=pf.vol,VL=[],vi=0,ctx,gn,src=null,ab=null,B=0,T0=0,AR=1,gen=0,rtm;
-             const save=()=>{try{const v=JSON.parse(localStorage.getItem(KEY))||{},p={...(v.player||{}),spd,rate,sl,gd,mirror:mir,apb:ap,sf,rk,aoff:ao,vol:vl,vw:view,skin,se:seSet,seVol,bgb:bgB,fxp:fxq};delete p.vt;delete p.ap;v.player=p;localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}try{if(parent&&parent.__setShared)parent.__setShared({slideOpacity:sl,guideOpacity:gd,mirror:mir})}catch(e){}}; /* 透明度・ミラーはアプリ全体の表示設定にも反映 */
+             const save=()=>{try{const v=JSON.parse(localStorage.getItem(KEY))||{},p={...(v.player||{}),spd,rate,sl,gd,mirror:mir,apb:ap,sf,rk,aoff:ao,vol:vl,vw:view,skin,se:seSet,seVol,bgb:bgB,fxp:fxq,stgc};delete p.vt;delete p.ap;v.player=p;localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}try{if(parent&&parent.__setShared)parent.__setShared({slideOpacity:sl,guideOpacity:gd,mirror:mir})}catch(e){}}; /* 透明度・ミラーはアプリ全体の表示設定にも反映 */
              /* ---- 音源：ボーカル取得／速度に合わせた音声変換(WSOLA・音程維持)／再生。譜面時刻は音声クロックに同期 ---- */
              const MD='https://sekai-world.github.io/sekai-master-db-diff/',SC=new Map();
              const getCtx=()=>{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();gn=ctx.createGain();gn.gain.value=vl;gn.connect(ctx.destination)}return ctx};
-             const aT=()=>B+(ctx.currentTime-(ctx.outputLatency||0)-T0)*AR;
+             let __latV=-1,__latT=0;const __lat=()=>{if(!ctx)return 0;const now=performance.now();if(now-__latT>1000){__latT=now;try{if(ctx.getOutputTimestamp){const ts=ctx.getOutputTimestamp();const aud=ts.contextTime+(now/1000-ts.outputTimestamp/1000);const est=ctx.currentTime-aud;if(isFinite(est)&&est>=-0.005&&est<1)__latV=__latV<0?est:__latV+(est-__latV)*0.5}}catch(e){}if(__latV<0)__latV=ctx.outputLatency||0}return __latV>=0?__latV:(ctx.outputLatency||0)};const aT=()=>B+(ctx.currentTime-__lat()-T0)*AR;
              const kill=()=>{const s=src;src=null;if(s){try{s.stop()}catch(e){}s.disconnect()}};
              const aStop=()=>{if(src)cur=Math.min(dur,aT());kill()};
              const aStart=()=>{
@@ -4943,7 +5010,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
                glEng.onFail=()=>{glState='failed';if(window.__ldE)__ldE();inv()};
               }catch(e){glState='failed';if(window.__ldE)__ldE()}};initGL();
              const drawGame=()=>{if(glState==='idle')initGL();
-              if(glState==='ready'&&glEng){glEng.setConfig({noteSpeed:spd,mirror:mir,holdAlpha:sl,guideAlpha:gd,ap:ap,sf:sf,rate:rate,rk:rk,skin:skin,seSet:seSet,seVolume:seVol,backgroundBrightness:bgB,fxProfile:fxq});
+              if(glState==='ready'&&glEng){glEng.setConfig({noteSpeed:spd,mirror:mir,holdAlpha:sl,guideAlpha:gd,ap:ap,sf:sf,rate:rate,rk:rk,skin:skin,seSet:seSet,seVolume:seVol,backgroundBrightness:bgB,fxProfile:fxq,stageCover:stgc});
                glCanvas.style.display='block';gcv.style.display='none';bgc.style.display='none';
                if(glEng.render(cur))return}
               glCanvas.style.display='none';drawGame2D()};
@@ -4984,7 +5051,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
              $('slO').value=Math.round(sl*100);$('gdO').value=Math.round(gd*100);setOp();
              $('slO').oninput=e=>{sl=e.target.value/100;setOp();save()};$('gdO').oninput=e=>{gd=e.target.value/100;setOp();save()};
              const setMir=()=>{gX.setAttribute('transform',mir?`translate(${SW} 0) scale(-1 1)`:'');$('mir').checked=mir;inv()};
-             $('mir').onchange=e=>{mir=e.target.checked;setMir();save()};setMir();$('skin').value=skin;$('seSet').value=seSet;$('seVol').value=Math.round(seVol*100);$('sevolv').textContent=Math.round(seVol*100)+'%';$('bgB').value=Math.round(bgB*100);$('bgbv').textContent=Math.round(bgB*100)+'%';$('skin').onchange=e=>{skin=e.target.value;save();inv()};$('seSet').onchange=e=>{seSet=e.target.value;save();inv()};$('seVol').oninput=e=>{seVol=e.target.value/100;$('sevolv').textContent=e.target.value+'%';save();inv()};$('bgB').oninput=e=>{bgB=e.target.value/100;$('bgbv').textContent=e.target.value+'%';inv();save()};$('fxq').value=String(fxq);$('fxq').onchange=e=>{fxq=+e.target.value;save();inv()};
+             $('mir').onchange=e=>{mir=e.target.checked;setMir();save()};setMir();$('skin').value=skin;$('seSet').value=seSet;$('seVol').value=Math.round(seVol*100);$('sevolv').textContent=Math.round(seVol*100)+'%';$('bgB').value=Math.round(bgB*100);$('bgbv').textContent=Math.round(bgB*100)+'%';$('skin').onchange=e=>{skin=e.target.value;save();inv()};$('seSet').onchange=e=>{seSet=e.target.value;save();inv()};$('seVol').oninput=e=>{seVol=e.target.value/100;$('sevolv').textContent=e.target.value+'%';save();inv()};$('bgB').oninput=e=>{bgB=e.target.value/100;$('bgbv').textContent=e.target.value+'%';inv();save()};$('fxq').value=String(fxq);$('fxq').onchange=e=>{fxq=+e.target.value;save();inv()};$('stgc').value=Math.round(stgc*100);$('stgcv').textContent=Math.round(stgc*100)+'%';$('stgc').oninput=e=>{stgc=e.target.value/100;$('stgcv').textContent=e.target.value+'%';inv();save()};
              $('tg').onclick=()=>{const p=$('panel');p.hidden=!p.hidden;$('tg').setAttribute('aria-expanded',!p.hidden);$('tg').innerHTML=p.hidden?'表示設定':'表示設定<span class="wd">を隠す</span>'};
              addEventListener('keydown',e=>{
               if(e.ctrlKey||e.metaKey||e.altKey)return;
@@ -5053,6 +5120,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
               <div class="control"><label class="cap" for="seVol">ノーツ音の音量 <b id="sevolv"></b></label><input id="seVol" type="range" min="0" max="100"></div>
               <div class="control"><label class="cap" for="bgB">背景の明るさ <b id="bgbv"></b></label><input id="bgB" type="range" min="20" max="150" step="5"></div>
               <div class="control"><label class="cap" for="fxq">エフェクトの強さ</label><select id="fxq"><option value="0">強い（通常）</option><option value="1">弱い（低特效）</option></select></div>
+              <div class="control"><label class="cap" for="stgc">ステージカバー <b id="stgcv"></b></label><input id="stgc" type="range" min="0" max="100" step="5"></div>
              </section>
              <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}${window.__NSP&&window.__NSP.ready?window.__NSP.defs:''}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
               <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
