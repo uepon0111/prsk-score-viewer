@@ -1949,7 +1949,14 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
     }
   }
 
-  function calculateDrawData(score, noteSpeed) {
+  function calculateDrawData(score, noteSpeed, noSoflan) {
+    // noSoflan (ソフランなし): speed changes are disabled — every scaled
+    // position is computed with the hi-speed list emptied, so notes,
+    // ribbons and lines all live in plain tempo time, matching the
+    // plain clock table the host uses in this mode. Building drawData
+    // in hi-speed space while the clock runs in plain space (the old
+    // behaviour) displaced ribbons and could hide the whole chart.
+    if (noSoflan) score = Object.assign({}, score, { hiSpeeds: [] });
     const drawData = {
       noteSpeed, maxTicks: 1,
       drawingNotes: [], drawingLines: [], drawingHoldTicks: [], drawingHoldSegments: [],
@@ -4315,7 +4322,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
       var key = cfg.noteSpeed + '|' + (cfg.rk === 'keep' ? cfg.rate : 1) + '|' + cfg.sf;
       if (key === drawKey || !score) return;
       drawKey = key;
-      drawData = window.SekaiDraw.calculateDrawData(score, cfg.noteSpeed);
+      drawData = window.SekaiDraw.calculateDrawData(score, cfg.noteSpeed, !cfg.sf);
       var ds = cfg.rk === 'keep' ? cfg.rate : 1;
       if (ds !== 1) {
         var shrink = function (vt) { vt.min = vt.max - (vt.max - vt.min) * ds; };
