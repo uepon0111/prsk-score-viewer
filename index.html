@@ -1076,7 +1076,7 @@
             const pref=clamp;
             const vs=()=>({slideOpacity:cfg.sl/100,guideOpacity:cfg.gd/100,mirror:cfg.mirror});
             /* 譜面再生の設定。再生画面（openPlayer）と設定画面の両方がこれを読む（スライド/ガイドの透明度とミラーは「表示の設定」と共通） */
-            const playPrefs=()=>{const pp=loadPrefs().player||{},ab=pp.apb!=null?pp.apb:pp.ap!=null?100-pp.ap:null /* 新：apb＝レーン奥からの%。旧設定 ap（見える範囲%・100=全体）は 100-ap に読み替え */;return{spd:Math.round(pref(pp.spd,6,1,12)*100)/100,rate:Math.round(pref(pp.rate,1,.25,1)*100)/100,ap:Math.round(pref(ab,0,0,100)),sf:pp.sf==null?true:!!pp.sf,rk:pp.rk==='keep'?'keep':'all',sl:vs().slideOpacity,gd:vs().guideOpacity,mirror:vs().mirror,ao:Math.round(pref(pp.aoff,0,-3,3)*100)/100,vol:pref(pp.vol,1,0,1),dv:pp.dv==='virtual_singer'?'virtual_singer':'sekai',vw:pp.vw==='game'?'game':'flat',skin:pp.skin==='02'?'02':'01',se:(pp.se==='02'||pp.se==='off')?pp.se:'01',seVol:pref(pp.seVol,.9,0,1),bgb:pref(pp.bgb,1,.2,1.5),fxp:pp.fxp===1?1:0,stgc:pref(pp.stgc,0,0,1)}};
+            const playPrefs=()=>{const pp=loadPrefs().player||{},ab=pp.apb!=null?pp.apb:pp.ap!=null?100-pp.ap:null /* 新：apb＝レーン奥からの%。旧設定 ap（見える範囲%・100=全体）は 100-ap に読み替え */;return{spd:Math.round(pref(pp.spd,6,1,12)*100)/100,rate:Math.round(pref(pp.rate,1,.25,1)*100)/100,ap:Math.round(pref(ab,0,0,100)),sf:pp.sf==null?true:!!pp.sf,rk:pp.rk==='keep'?'keep':'all',sl:vs().slideOpacity,gd:vs().guideOpacity,mirror:vs().mirror,ao:Math.round(pref(pp.aoff,0,-3,3)*100)/100,vol:pref(pp.vol,1,0,1),dv:pp.dv==='virtual_singer'?'virtual_singer':'sekai',vw:pp.vw==='game'?'game':'flat',skin:pp.skin==='02'?'02':'01',se:(pp.se==='02'||pp.se==='off')?pp.se:'01',seVol:pref(pp.seVol,.9,0,1),bgb:pref(pp.bgb,1,.2,1.5),fxp:pp.fxp===1?1:0}};
             const st=t=>{const e=$('#st');e.textContent=t;e.hidden=!t;clearTimeout(stT);if(t&&!/…$/.test(t))stT=setTimeout(()=>e.hidden=true,6000)};
             const jget=async u=>{try{const r=await fetch(MASTER+u);if(!r.ok)throw 0;kcM('master/'+u,r.clone());return await r.json()}catch(e){const c=await CC.get('master/'+u);if(c)return c.json();throw e}}; /* 通信優先・失敗時はキャッシュ */
             const fd=ms=>{if(!ms)return'-';const d=new Date(ms);return`${d.getFullYear()}/${pad(d.getMonth()+1,2)}/${pad(d.getDate(),2)}`};
@@ -4247,7 +4247,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
       hitEvents = null; seIdx = 0;
       try { hitEvents = window.SekaiDraw.calculateHitEvents(score).filter(function (e) { return !e.auto; }); } catch (e) { hitEvents = null; }
     }
-    var cfg = { noteSpeed: 6, mirror: false, holdAlpha: 1, guideAlpha: 1, ap: 0, sf: true, rate: 1, rk: 'all', skin: '01', seSet: '01', seVolume: 0.9, backgroundBrightness: 1, fxProfile: 0, stageCover: 0 };
+    var cfg = { noteSpeed: 6, mirror: false, holdAlpha: 1, guideAlpha: 1, ap: 0, sf: true, rate: 1, rk: 'all', skin: '01', seSet: '01', seVolume: 0.9, backgroundBrightness: 1, fxProfile: 0 };
     var BASES = ['assets/', 'https://raw.githubusercontent.com/uepon0111/prsk-score-viewer/main/assets/'];
     function loadImg(path) {
       return new Promise(function (resolve, reject) {
@@ -4530,7 +4530,11 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
           score: score, drawData: drawData, nowSec: now, nowScaled: nowScaled, fx: fx,
           cfg: {
             mirror: cfg.mirror, holdAlpha: cfg.holdAlpha, guideAlpha: cfg.guideAlpha,
-            backgroundBrightness: cfg.backgroundBrightness, stageCover: cfg.stageCover || 0, stageOpacity: 1,
+            backgroundBrightness: cfg.backgroundBrightness,
+            // The stage cover IS the note display-start position (the
+            // player's ap setting): derive the cover so its boundary sits
+            // exactly at apMin, where notes appear. ap = 0 keeps no cover.
+            stageCover: cfg.ap > 0 ? Math.max(0, Math.min(1, ((a0 + (cfg.ap / 100) * (1 - a0)) - 47 / 850) / (1 - 47 / 850))) : 0, stageOpacity: 1,
             flickAnimation: true, holdAnimation: true, simultaneousLine: true,
             apMin: a0 + (cfg.ap / 100) * (1 - a0),
           },
@@ -4631,10 +4635,10 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
               d+='L'+P(sg[n-1],3,fb);for(let i=n-1;i>=0;i--){const s=sg[i];d+='C'+P(s,2,fb)+' '+P(s,1,fb)+' '+P(s,0,fb)}return d+'Z'};
              const fEdges=(sg,o)=>{let d='';for(const e of[0,1]){const P=(s,k)=>fq(s[e][k][0]+(e?-o:o))+','+fq(s[e][k][1]);d+='M'+P(sg[0],0);for(const s of sg)d+='C'+P(s,1)+' '+P(s,2)+' '+P(s,3)}return d};
              /* ---- 状態 ---- */
-             const pf=D.pf;let spd=pf.spd,rate=pf.rate,sl=pf.sl,gd=pf.gd,mir=pf.mirror,pps=JY/TT(spd),ap=pf.ap,tp=0,rk=pf.rk,skin=pf.skin,seSet=pf.se,seVol=pf.seVol,bgB=pf.bgb,fxq=pf.fxp,stgc=pf.stgc,cur=-LEAD,playing=false,last=0,need=true,raf=0,drag=false;const inv=()=>{need=true;if(!raf&&!document.hidden)raf=requestAnimationFrame(loop)};
+             const pf=D.pf;let spd=pf.spd,rate=pf.rate,sl=pf.sl,gd=pf.gd,mir=pf.mirror,pps=JY/TT(spd),ap=pf.ap,tp=0,rk=pf.rk,skin=pf.skin,seSet=pf.se,seVol=pf.seVol,bgB=pf.bgb,fxq=pf.fxp,cur=-LEAD,playing=false,last=0,need=true,raf=0,drag=false;const inv=()=>{need=true;if(!raf&&!document.hidden)raf=requestAnimationFrame(loop)};
              const KEY='sekaiChartViewer.settings.v1';
              const FS=D.fs||0;let ao=pf.ao,vl=pf.vol,VL=[],vi=0,ctx,gn,src=null,ab=null,B=0,T0=0,AR=1,gen=0,rtm;
-             const save=()=>{try{const v=JSON.parse(localStorage.getItem(KEY))||{},p={...(v.player||{}),spd,rate,sl,gd,mirror:mir,apb:ap,sf,rk,aoff:ao,vol:vl,vw:view,skin,se:seSet,seVol,bgb:bgB,fxp:fxq,stgc};delete p.vt;delete p.ap;v.player=p;localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}try{if(parent&&parent.__setShared)parent.__setShared({slideOpacity:sl,guideOpacity:gd,mirror:mir})}catch(e){}}; /* 透明度・ミラーはアプリ全体の表示設定にも反映 */
+             const save=()=>{try{const v=JSON.parse(localStorage.getItem(KEY))||{},p={...(v.player||{}),spd,rate,sl,gd,mirror:mir,apb:ap,sf,rk,aoff:ao,vol:vl,vw:view,skin,se:seSet,seVol,bgb:bgB,fxp:fxq};delete p.vt;delete p.ap;v.player=p;localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}try{if(parent&&parent.__setShared)parent.__setShared({slideOpacity:sl,guideOpacity:gd,mirror:mir})}catch(e){}}; /* 透明度・ミラーはアプリ全体の表示設定にも反映 */
              /* ---- 音源：ボーカル取得／速度に合わせた音声変換(WSOLA・音程維持)／再生。譜面時刻は音声クロックに同期 ---- */
              const MD='https://sekai-world.github.io/sekai-master-db-diff/',SC=new Map();
              const getCtx=()=>{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();gn=ctx.createGain();gn.gain.value=vl;gn.connect(ctx.destination)}return ctx};
@@ -5010,7 +5014,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
                glEng.onFail=()=>{glState='failed';if(window.__ldE)__ldE();inv()};
               }catch(e){glState='failed';if(window.__ldE)__ldE()}};initGL();
              const drawGame=()=>{if(glState==='idle')initGL();
-              if(glState==='ready'&&glEng){glEng.setConfig({noteSpeed:spd,mirror:mir,holdAlpha:sl,guideAlpha:gd,ap:ap,sf:sf,rate:rate,rk:rk,skin:skin,seSet:seSet,seVolume:seVol,backgroundBrightness:bgB,fxProfile:fxq,stageCover:stgc});
+              if(glState==='ready'&&glEng){glEng.setConfig({noteSpeed:spd,mirror:mir,holdAlpha:sl,guideAlpha:gd,ap:ap,sf:sf,rate:rate,rk:rk,skin:skin,seSet:seSet,seVolume:seVol,backgroundBrightness:bgB,fxProfile:fxq});
                glCanvas.style.display='block';gcv.style.display='none';bgc.style.display='none';
                if(glEng.render(cur))return}
               glCanvas.style.display='none';drawGame2D()};
@@ -5051,7 +5055,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
              $('slO').value=Math.round(sl*100);$('gdO').value=Math.round(gd*100);setOp();
              $('slO').oninput=e=>{sl=e.target.value/100;setOp();save()};$('gdO').oninput=e=>{gd=e.target.value/100;setOp();save()};
              const setMir=()=>{gX.setAttribute('transform',mir?`translate(${SW} 0) scale(-1 1)`:'');$('mir').checked=mir;inv()};
-             $('mir').onchange=e=>{mir=e.target.checked;setMir();save()};setMir();$('skin').value=skin;$('seSet').value=seSet;$('seVol').value=Math.round(seVol*100);$('sevolv').textContent=Math.round(seVol*100)+'%';$('bgB').value=Math.round(bgB*100);$('bgbv').textContent=Math.round(bgB*100)+'%';$('skin').onchange=e=>{skin=e.target.value;save();inv()};$('seSet').onchange=e=>{seSet=e.target.value;save();inv()};$('seVol').oninput=e=>{seVol=e.target.value/100;$('sevolv').textContent=e.target.value+'%';save();inv()};$('bgB').oninput=e=>{bgB=e.target.value/100;$('bgbv').textContent=e.target.value+'%';inv();save()};$('fxq').value=String(fxq);$('fxq').onchange=e=>{fxq=+e.target.value;save();inv()};$('stgc').value=Math.round(stgc*100);$('stgcv').textContent=Math.round(stgc*100)+'%';$('stgc').oninput=e=>{stgc=e.target.value/100;$('stgcv').textContent=e.target.value+'%';inv();save()};
+             $('mir').onchange=e=>{mir=e.target.checked;setMir();save()};setMir();$('skin').value=skin;$('seSet').value=seSet;$('seVol').value=Math.round(seVol*100);$('sevolv').textContent=Math.round(seVol*100)+'%';$('bgB').value=Math.round(bgB*100);$('bgbv').textContent=Math.round(bgB*100)+'%';$('skin').onchange=e=>{skin=e.target.value;save();inv()};$('seSet').onchange=e=>{seSet=e.target.value;save();inv()};$('seVol').oninput=e=>{seVol=e.target.value/100;$('sevolv').textContent=e.target.value+'%';save();inv()};$('bgB').oninput=e=>{bgB=e.target.value/100;$('bgbv').textContent=e.target.value+'%';inv();save()};$('fxq').value=String(fxq);$('fxq').onchange=e=>{fxq=+e.target.value;save();inv()};
              $('tg').onclick=()=>{const p=$('panel');p.hidden=!p.hidden;$('tg').setAttribute('aria-expanded',!p.hidden);$('tg').innerHTML=p.hidden?'表示設定':'表示設定<span class="wd">を隠す</span>'};
              addEventListener('keydown',e=>{
               if(e.ctrlKey||e.metaKey||e.altKey)return;
@@ -5120,7 +5124,6 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
               <div class="control"><label class="cap" for="seVol">ノーツ音の音量 <b id="sevolv"></b></label><input id="seVol" type="range" min="0" max="100"></div>
               <div class="control"><label class="cap" for="bgB">背景の明るさ <b id="bgbv"></b></label><input id="bgB" type="range" min="20" max="150" step="5"></div>
               <div class="control"><label class="cap" for="fxq">エフェクトの強さ</label><select id="fxq"><option value="0">強い（通常）</option><option value="1">弱い（低特效）</option></select></div>
-              <div class="control"><label class="cap" for="stgc">ステージカバー <b id="stgcv"></b></label><input id="stgc" type="range" min="0" max="100" step="5"></div>
              </section>
              <main id="wrap"><svg id="stage" role="img" aria-label="ノーツが流れる譜面再生画面" preserveAspectRatio="xMidYMid meet"><defs>${sprites}${window.__NSP&&window.__NSP.ready?window.__NSP.defs:''}</defs></svg><canvas id="gbg" aria-hidden="true"></canvas><canvas id="gview" role="img" aria-label="実際のゲーム画面のようなノーツが流れる再生画面"></canvas><canvas id="ggl" aria-hidden="true"></canvas><div id="ldOvP" role="status"><div class="ldCard"><div class="ldMsg">読み込み中…</div><div class="ldBarWrap"><i></i></div><div class="ldSub" id="ldSubP">音源・ボーカル情報を取得しています</div></div></div>
               <div class="hud"><span id="hB">小節 0</span><span id="hBpm">BPM</span><span id="hHs">速度 ×1</span></div></main>
