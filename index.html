@@ -949,9 +949,9 @@
                図形は全て同じ大きさの枠(64×52)の中央に揃え、名前は図の真下に置く。 */
             const __LEG_BUILD=()=>{
              window.__NSP_IMG=1;const IW=64,IH=52,ic=(g,cx,cy)=>`<svg width="${IW}" height="${IH}" viewBox="${cx-IW/2} ${cy-IH/2} ${IW} ${IH}" aria-hidden="true">${g}</svg>`;
-             const tp=k=>ic(body(1,24,38,k),20,24),
-                   fk=k=>ic(body(1,24,38,k)+arrow(20,24,2,0,k==='crit'?'crit':'flick'),20,13.5),
-                   tr=(cr,fl)=>ic(trc(4,37,38,cr,fl)+(fl?arrow(23,37,1,0,cr?'crit':'flick'):''),23,fl?28.7:37),
+             const tp=k=>ic(window.__NSP&&window.__NSP.ready?`<image href="${window.__NSP.uri[k==='crit'?'b-crit':k==='flick'?'b-flick':k==='long'?'b-long':'b-tap']}" x="-3" y="11.9" width="46" height="24.2"/>`:body(1,24,38,k),20,24),
+                   fk=k=>ic(window.__NSP&&window.__NSP.ready?`<image href="${window.__NSP.uri[k==='crit'?'b-crit':'b-flick']}" x="1" y="18.5" width="38" height="20"/><image href="${window.__NSP.uri[k==='crit'?'a-cs2':'a-s2']}" x="7" y="-0.6" width="26" height="24.1"/>`:body(1,24,38,k)+arrow(20,24,2,0,k==='crit'?'crit':'flick'),20,13.5),
+                   tr=(cr,fl)=>ic(window.__NSP&&window.__NSP.ready?`<image href="${window.__NSP.uri[cr?'b-frc':fl?'b-frf':'b-fr']}" x="1" y="25.4" width="44" height="23.1"/><image href="${window.__NSP.uri[cr?'af-c':fl?'af-f':'af']}" x="16.5" y="30.5" width="13" height="13"/>`+(fl?`<image href="${window.__NSP.uri[cr?'a-cs1':'a-s1']}" x="13" y="14.8" width="20" height="18.5"/>`:''):trc(4,37,38,cr,fl)+(fl?arrow(23,37,1,0,cr?'crit':'flick'):''),23,fl?28.7:37),
                    gm=k=>ic(gem(15,20,k,1),15,20),
                    gd=cr=>ic(`<path d="M7 33L11 1H23L27 33Z" fill="${cr?'#f0c45c':'#55dfa7'}" opacity=".55"/>`,17,17);
              const wb=n=>n.replace(/(クリティカル|フリック|トレース|ロング|タップ|ガイド)(?=.)/g,'$1<wbr>');
