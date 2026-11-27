@@ -1465,6 +1465,24 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
         inheritIndex.get(key).push(info);
       }
     }
+    // Attachment is exclusive, as in test10: a coincident tap/directional
+    // belongs to the FIRST slide/guide info at its slot (file order —
+    // real slide lines precede guide lines), so a guide head sitting on
+    // the same slot as a real head does not steal the real head's tap
+    // attributes (critical / friction / hidden).
+    const claimOf = new Map(); // tap/directional info -> claiming slide/guide info
+    {
+      const claimedSlots = new Set();
+      for (const info of infos) {
+        if (info.kind !== 'slide' && info.kind !== 'guide') continue;
+        const key = info.tick + ',' + info.lane + ',' + info.width;
+        if (claimedSlots.has(key)) continue;
+        claimedSlots.add(key);
+        for (const other of inheritIndex.get(info.tick + ',' + info.lane) || []) {
+          if (other.width === info.width && !claimOf.has(other)) claimOf.set(other, info);
+        }
+      }
+    }
     const inherit = (info) => {
       // returns merged attributes from coincident tap/directional infos.
       // Attachment requires the same slot: tick + lane + width (test10
@@ -1473,6 +1491,7 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
       const coincident = inheritIndex.get(info.tick + ',' + info.lane) || [];
       for (const other of coincident) {
         if (other.width !== info.width) continue;
+        if (claimOf.get(other) !== info) continue;
         if (other.kind === 'tap') {
           if (other.critical) out.critical = true;
           // trend (trace) is tap types 5/6 only; types 7/8 are hidden
@@ -1545,19 +1564,19 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
         let endNote = null;
         if (endInfo) {
           const endInh = inherit(endInfo);
-          // Chain-end attributes: critical inherits from the chain head
-          // (test10 crit() resolves through the head — a critical slide's
-          // end flick is a critical flick), but friction/trend does NOT
-          // propagate (test10 trend() checks only the note's own tap/dir).
-          // A coincident trace tap (type 5/6) on an end does NOT make the
-          // end a trace note either: in the game it renders as a plain
-          // long-note end (no trace diamond, no trace particles), and
-          // test10's game-view hit effect likewise treats it as 'long'.
-          // The tap's criticality (type 6) still applies via endInh.
+          // Chain-end attributes follow test10 exactly: critical comes
+          // from the end's own attachments OR the chain head (crit()
+          // resolves through the head — a critical slide's end is
+          // critical), while friction/trend comes ONLY from the end's
+          // own coincident tap (type 5/6 at the same slot): a slide
+          // whose end slot carries a trace tap ends as a trace note.
+          // Trend never propagates from the head. (The gold trace
+          // diamond once seen at 691 APPEND bar 4 came from wrong
+          // critical inheritance, not from friction itself.)
           endNote = addNote({
             type: 'holdEnd', tick: endInfo.tick, lane: endInfo.lane, width: endInfo.width,
             critical: endInh.critical || (startNote ? startNote.critical : false),
-            friction: false,
+            friction: endInh.friction,
             hideBase: endInh.hideBase, damage: false,
             flick: endInh.flick !== 'none' ? endInh.flick : 'none',
             parentID: open.startNoteId, speedRatio: endInfo.speedRatio || 1,
@@ -1993,7 +2012,6 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
     }
     if (note.flick !== 'none' && !note.dirOnly) return note.critical ? 'critical_flick' : 'flick';
     if (note.friction) return note.critical ? 'critical_friction' : 'friction';
-    if (note.damage) return 'damage';
     if (note.critical && note.type === 'tap') return 'critical_tap';
     return 'perfect';
   }
@@ -2002,18 +2020,51 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
     const events = [];
     for (const note of score.notes.values()) {
       if (note.skip) continue;
-      if (note.type === 'holdEnd' && note.hideBase) continue; // hidden-trace end: no judgement
       const hold = note.type === 'hold' || note.type === 'holdMid' || note.type === 'holdEnd'
         ? score.holdNotes.get(note.type === 'hold' ? note.id : note.parentID) : null;
-      if (hold && hold.startType === 'guide') continue;
-      if (note.type === 'hold' && hold && hold.startType === 'hidden') {
-        // FrictionHide head: no base note is drawn, but the trace SE sounds.
+      // Event gating follows the reference implementation (sekai-mmw-
+      // preview-web, native calculateHitEvents): a hold start sounds only
+      // when its startType is Normal (hidden/guide heads are silent), a
+      // hold end only when its endType is Normal, and relay ticks come
+      // only from non-hidden steps. A Normal hold start additionally
+      // emits a 'holdLoop' event spanning the whole hold: the loop sound
+      // (the pack's connect / critical_connect) plays for exactly the
+      // hold's duration instead of ringing out at full sample length.
+      if (note.type === 'hold') {
+        if (!hold || hold.startType !== 'normal') continue;
+        const kind = noteSEKind(note, score);
+        if (kind) {
+          events.push({
+            time: accumulateDuration(note.tick, score.tempos),
+            tick: note.tick, kind, noteID: note.id,
+            lane: note.lane, width: note.width, critical: note.critical,
+            volume: seVolumeAtTick(note.tick, score),
+            combo: !note.deco && !note.damage, isEnd: false, isStart: true,
+          });
+        }
+        const end = score.notes.get(hold.end);
+        if (end && end.tick > note.tick) {
+          events.push({
+            time: accumulateDuration(note.tick, score.tempos),
+            endTime: accumulateDuration(end.tick, score.tempos),
+            tick: note.tick, kind: 'holdLoop', noteID: note.id,
+            lane: note.lane, width: note.width, critical: note.critical,
+            volume: seVolumeAtTick(note.tick, score),
+            combo: false, isEnd: false, isStart: true,
+          });
+        }
+        continue;
+      }
+      if (note.type === 'holdEnd') {
+        if (!hold || hold.endType !== 'normal' || note.hideBase) continue;
+        const kind = noteSEKind(note, score);
+        if (!kind) continue;
         events.push({
           time: accumulateDuration(note.tick, score.tempos),
-          tick: note.tick, kind: note.critical ? 'critical_friction' : 'friction', noteID: note.id,
+          tick: note.tick, kind, noteID: note.id,
           lane: note.lane, width: note.width, critical: note.critical,
           volume: seVolumeAtTick(note.tick, score),
-          combo: false, isEnd: false, isStart: true,
+          combo: !note.deco && !note.damage, isEnd: true, isStart: false,
         });
         continue;
       }
@@ -2024,7 +2075,7 @@ window.MMW_DATA={"noteSprites": [[354.0, 1100.0, 708.0, 1286.0], [0.0, 1286.0, 3
         tick: note.tick, kind, noteID: note.id,
         lane: note.lane, width: note.width, critical: note.critical,
         volume: seVolumeAtTick(note.tick, score),
-        combo: !note.deco && !note.damage, isEnd: note.type === 'holdEnd', isStart: note.type === 'hold',
+        combo: !note.deco && !note.damage, isEnd: false, isStart: false,
       });
     }
     // Auto hold ticks: 1/8-measure grid points strictly inside each hold
@@ -4066,6 +4117,7 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
       committed = true;
       drawKey = null; lastNow = -1;
       fx.setScore(score); fx.reset();
+      stopAllLoops();
       hitEvents = null; seIdx = 0;
       try { hitEvents = window.SekaiDraw.calculateHitEvents(score).filter(function (e) { return !e.auto; }); } catch (e) { hitEvents = null; }
     }
@@ -4087,9 +4139,14 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
     // ---- note SE: WebAudio buffers, scheduled with a lookahead window
     // against the host's chart clock (same model as the standalone player).
     var SE_KINDS = ['perfect', 'critical_tap', 'flick', 'critical_flick', 'friction', 'critical_friction', 'tick', 'critical_tick', 'connect', 'critical_connect'];
-    var SE_GAIN = { tick: 0.65, critical_tick: 0.7, connect: 0.8, critical_connect: 0.85 };
+    // Per-sound gains from the reference implementation (sekai-mmw-
+    // preview-web, JudgementSounds.getVolume): the pack's connect /
+    // critical_connect files are the hold LOOP sounds (the site's
+    // se_live_long*), and its tick files are the site's connect sounds.
+    var SE_GAIN = { perfect: 0.75, critical_tap: 0.75, flick: 0.75, critical_flick: 0.8, friction: 0.8, critical_friction: 0.82, tick: 0.9, critical_tick: 0.92, connect: 0.7, critical_connect: 0.7 };
     var seCtx = null, seMaster = null, seBuffers = { '01': {}, '02': {} }, seLoading = {};
     var hitEvents = null, seIdx = 0;
+    var activeLoops = new Map();
     function ensureSeCtx() {
       if (!seCtx) {
         var AC = window.AudioContext || window.webkitAudioContext;
@@ -4126,29 +4183,90 @@ window.MMW_FX_PROFILES = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01,0
     document.addEventListener('pointerdown', unlockSe);
     document.addEventListener('keydown', unlockSe);
     function resolveSeName(kind, ev) {
-      if (ev.isEnd && kind === 'perfect') return 'connect';
-      if (ev.isEnd && kind === 'critical_tap') return 'critical_connect';
+      if (kind === 'holdLoop') return ev.critical ? 'critical_connect' : 'connect';
       return kind;
+    }
+    function stopAllLoops() {
+      activeLoops.forEach(function (loop) {
+        try { loop.src.stop(); } catch (e) {}
+        try { loop.src.disconnect(); loop.gn.disconnect(); } catch (e) {}
+      });
+      activeLoops.clear();
+    }
+    function cleanupExpiredLoops(now) {
+      activeLoops.forEach(function (loop, key) {
+        if (loop.endChart <= now) {
+          try { loop.src.stop(); } catch (e) {}
+          activeLoops.delete(key);
+        }
+      });
+    }
+    // Hold loop, mirroring the reference JudgementSounds.playHoldLoop:
+    // the connect sample loops (3000-sample padding trimmed at both
+    // ends) from the hold's start and stops at the hold's end, so its
+    // length always follows the note's length. An identical loop that
+    // is already sounding (same sound, center and width) is extended
+    // instead of doubled.
+    function startLoop(ev, now) {
+      var name = resolveSeName(ev.kind, ev);
+      var buf = seBuffers[cfg.seSet][name];
+      if (!buf) return;
+      var rate = cfg.rate || 1;
+      var center = ev.lane + ev.width / 2;
+      var key = name + '|' + center + '|' + ev.width;
+      var stopAt = seCtx.currentTime + Math.max((ev.endTime - now) / rate, 0.02);
+      var ex = activeLoops.get(key);
+      if (ex) {
+        ex.endChart = Math.max(ex.endChart, ev.endTime);
+        try { ex.src.stop(seCtx.currentTime + Math.max((ex.endChart - now) / rate, 0.02)); } catch (e) {}
+        return;
+      }
+      var src = seCtx.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = rate;
+      src.loop = true;
+      var pad = 3000 / buf.sampleRate;
+      var loopStart = Math.min(pad, Math.max(0, buf.duration * 0.45));
+      src.loopStart = loopStart;
+      src.loopEnd = Math.max(loopStart + 0.01, buf.duration - pad);
+      var gn = seCtx.createGain();
+      gn.gain.value = (SE_GAIN[name] || 1) * (ev.volume || 1);
+      src.connect(gn); gn.connect(seMaster);
+      var loop = { src: src, gn: gn, endChart: ev.endTime };
+      src.onended = function () {
+        try { src.disconnect(); gn.disconnect(); } catch (e) {}
+        if (activeLoops.get(key) === loop) activeLoops.delete(key);
+      };
+      activeLoops.set(key, loop);
+      src.start(seCtx.currentTime + Math.max(0, (ev.time - now) / rate));
+      try { src.stop(stopAt); } catch (e) {}
     }
     function scheduleSE(now) {
       if (!seCtx || cfg.seSet === 'off' || !hitEvents) return;
+      cleanupExpiredLoops(now);
       var horizon = now + 0.15;
       while (seIdx < hitEvents.length && hitEvents[seIdx].time <= horizon) {
         var ev = hitEvents[seIdx++];
         if (ev.time < now - 0.05) continue;
+        if (ev.kind === 'holdLoop') {
+          if (ev.endTime > ev.time) startLoop(ev, now);
+          continue;
+        }
         var name = resolveSeName(ev.kind, ev);
         var buf = seBuffers[cfg.seSet][name];
         if (!buf && name === 'critical_friction') buf = seBuffers[cfg.seSet].friction;
         if (!buf) continue;
         var src = seCtx.createBufferSource();
         src.buffer = buf;
+        src.playbackRate.value = cfg.rate || 1;
         var gn = seCtx.createGain();
-        gn.gain.value = (SE_GAIN[ev.kind] || 1) * (ev.volume || 1);
+        gn.gain.value = (SE_GAIN[name] || 1) * (ev.volume || 1);
         src.connect(gn); gn.connect(seMaster);
         src.start(seCtx.currentTime + Math.max(0, (ev.time - now) / (cfg.rate || 1)));
       }
     }
     function resetSeIdx(now) {
+      stopAllLoops();
       if (!hitEvents) { seIdx = 0; return; }
       var lo = 0, hi = hitEvents.length;
       while (lo < hi) { var mid = (lo + hi) >> 1; if (hitEvents[mid].time < now - 0.05) lo = mid + 1; else hi = mid; }
