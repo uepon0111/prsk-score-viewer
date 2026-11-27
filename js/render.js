@@ -260,12 +260,70 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
       return t;
     }
     setSkinTextures(notesImg, longImg, touchImg) {
-      this.textures[0] = this.makeTexture(notesImg);
+      const corrected = this.correctNoteTexture(notesImg);
+      this.textures[0] = this.makeTexture(corrected);
       this.textures[1] = this.makeTexture(longImg);
       this.textures[2] = this.makeTexture(touchImg);
       this.texSizes[0] = [notesImg.width, notesImg.height];
       this.texSizes[1] = [longImg.width, longImg.height];
       this.texSizes[2] = [touchImg.width, touchImg.height];
+    }
+    // The atlas art is not drawn consistently across note types: in skin
+    // 02 the critical body sits ~9.6px lower in its frame than the normal
+    // body, and in skin 01 it is also thicker, so same-tick notes do not
+    // line up on screen even though the geometry is identical. Redraw
+    // each body sprite (0-6) inside its own frame so its visible extent
+    // (half-max luminance profile over the frame's central columns)
+    // matches the reference sprite's extent — TAP (3) for note bodies,
+    // FRICTION (4) for the friction bodies — the way the real game's
+    // assets are authored. Returns the original image on any failure.
+    correctNoteTexture(img) {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        const cx = cv.getContext('2d', { willReadFrequently: true });
+        cx.drawImage(img, 0, 0);
+        const extents = [];
+        for (let i = 0; i < 7; i++) {
+          const s = NOTE_SPRITES[i];
+          const w = s[2] - s[0], h = s[3] - s[1];
+          const xa = Math.floor(w * 0.3), xb = Math.ceil(w * 0.7);
+          const data = cx.getImageData(s[0] + xa, s[1], xb - xa, h).data;
+          const prof = new Float64Array(h);
+          for (let yy = 0; yy < h; yy++) {
+            let sum = 0;
+            for (let xx = 0; xx < xb - xa; xx++) {
+              const p = (yy * (xb - xa) + xx) * 4;
+              sum += (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) * (data[p + 3] / 255);
+            }
+            prof[yy] = sum / (xb - xa);
+          }
+          let peak = 0;
+          for (let yy = 0; yy < h; yy++) if (prof[yy] > peak) peak = prof[yy];
+          const half = peak * 0.5;
+          let top = -1, bot = -1;
+          for (let yy = 0; yy < h; yy++) if (prof[yy] >= half) { if (top < 0) top = yy; bot = yy; }
+          if (top < 0) { extents.push(null); continue; }
+          const edge = (i0, i1) => { const v0 = prof[i0], v1 = prof[i1]; return v1 !== v0 ? i0 + (half - v0) / (v1 - v0) : i0; };
+          const topF = top > 0 ? edge(top - 1, top) : top;
+          const botF = bot < h - 1 ? edge(bot + 1, bot) : bot;
+          extents.push({ top: topF, bot: botF });
+        }
+        const refs = [3, 3, 3, 3, 4, 4, 4];
+        let changed = false;
+        for (let i = 0; i < 7; i++) {
+          const e = extents[i], r = extents[refs[i]];
+          if (!e || !r || i === refs[i]) continue;
+          if (Math.abs(e.top - r.top) < 0.05 && Math.abs(e.bot - r.bot) < 0.05) continue;
+          const s = NOTE_SPRITES[i];
+          cx.clearRect(s[0], s[1], s[2] - s[0], s[3] - s[1]);
+          cx.drawImage(img,
+            s[0], s[1] + e.top, s[2] - s[0], e.bot - e.top,
+            s[0], s[1] + r.top, s[2] - s[0], r.bot - r.top);
+          changed = true;
+        }
+        return changed ? cv : img;
+      } catch (e) { return img; }
     }
     setEffectTexture(img) {
       this.textures[3] = this.makeTexture(img);
@@ -316,7 +374,8 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
     }
 
     drawNoteBase(note, noteLeft, noteRight, y, zScalar, cfg, tint) {
-      const sprite = NOTE_SPRITES[getNoteSpriteIndex(note)];
+      const sprIdx = getNoteSpriteIndex(note);
+      const sprite = NOTE_SPRITES[sprIdx];
       const h = NOTE_HEIGHT;
       const noteTop = 1 - h, noteBottom = 1 + h;
       let L = noteLeft, R = noteRight;

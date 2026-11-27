@@ -2441,28 +2441,30 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
       return t;
     }
     setSkinTextures(notesImg, longImg, touchImg) {
-      this.textures[0] = this.makeTexture(notesImg);
+      const corrected = this.correctNoteTexture(notesImg);
+      this.textures[0] = this.makeTexture(corrected);
       this.textures[1] = this.makeTexture(longImg);
       this.textures[2] = this.makeTexture(touchImg);
       this.texSizes[0] = [notesImg.width, notesImg.height];
       this.texSizes[1] = [longImg.width, longImg.height];
       this.texSizes[2] = [touchImg.width, touchImg.height];
-      this.noteCenterDy = this.measureNoteCenterDy(notesImg);
     }
-    // Vertical offset (texture px) of each note body's visible center
-    // relative to the TAP sprite's, measured from the skin image itself
-    // (half-max luminance profile over the frame's central columns). Some
-    // skins draw a body off-center in its frame — skin 02's critical body
-    // sits ~9.6px low — and drawNoteBase shifts the quad by this amount so
-    // bodies align across note types. Falls back to zeros on any failure.
-    measureNoteCenterDy(img) {
-      const dy = [0, 0, 0, 0, 0, 0, 0];
+    // The atlas art is not drawn consistently across note types: in skin
+    // 02 the critical body sits ~9.6px lower in its frame than the normal
+    // body, and in skin 01 it is also thicker, so same-tick notes do not
+    // line up on screen even though the geometry is identical. Redraw
+    // each body sprite (0-6) inside its own frame so its visible extent
+    // (half-max luminance profile over the frame's central columns)
+    // matches the reference sprite's extent — TAP (3) for note bodies,
+    // FRICTION (4) for the friction bodies — the way the real game's
+    // assets are authored. Returns the original image on any failure.
+    correctNoteTexture(img) {
       try {
         const cv = document.createElement('canvas');
         cv.width = img.width; cv.height = img.height;
         const cx = cv.getContext('2d', { willReadFrequently: true });
         cx.drawImage(img, 0, 0);
-        const centers = [];
+        const extents = [];
         for (let i = 0; i < 7; i++) {
           const s = NOTE_SPRITES[i];
           const w = s[2] - s[0], h = s[3] - s[1];
@@ -2482,16 +2484,27 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
           const half = peak * 0.5;
           let top = -1, bot = -1;
           for (let yy = 0; yy < h; yy++) if (prof[yy] >= half) { if (top < 0) top = yy; bot = yy; }
-          if (top < 0) { centers.push(null); continue; }
+          if (top < 0) { extents.push(null); continue; }
           const edge = (i0, i1) => { const v0 = prof[i0], v1 = prof[i1]; return v1 !== v0 ? i0 + (half - v0) / (v1 - v0) : i0; };
           const topF = top > 0 ? edge(top - 1, top) : top;
           const botF = bot < h - 1 ? edge(bot + 1, bot) : bot;
-          centers.push((topF + botF) / 2);
+          extents.push({ top: topF, bot: botF });
         }
-        const ref = centers[3];
-        if (ref != null) for (let i = 0; i < 7; i++) if (centers[i] != null) dy[i] = centers[i] - ref;
-      } catch (e) { /* keep zeros */ }
-      return dy;
+        const refs = [3, 3, 3, 3, 4, 4, 4];
+        let changed = false;
+        for (let i = 0; i < 7; i++) {
+          const e = extents[i], r = extents[refs[i]];
+          if (!e || !r || i === refs[i]) continue;
+          if (Math.abs(e.top - r.top) < 0.05 && Math.abs(e.bot - r.bot) < 0.05) continue;
+          const s = NOTE_SPRITES[i];
+          cx.clearRect(s[0], s[1], s[2] - s[0], s[3] - s[1]);
+          cx.drawImage(img,
+            s[0], s[1] + e.top, s[2] - s[0], e.bot - e.top,
+            s[0], s[1] + r.top, s[2] - s[0], r.bot - r.top);
+          changed = true;
+        }
+        return changed ? cv : img;
+      } catch (e) { return img; }
     }
     setEffectTexture(img) {
       this.textures[3] = this.makeTexture(img);
@@ -2545,11 +2558,7 @@ void main(){ vec4 tc = texture(uTex, vUv) * vColor;
       const sprIdx = getNoteSpriteIndex(note);
       const sprite = NOTE_SPRITES[sprIdx];
       const h = NOTE_HEIGHT;
-      // Shift the quad so a body drawn off-center in its frame (see
-      // measureNoteCenterDy) lands with its center on the TAP position.
-      const dyPx = this.noteCenterDy ? (this.noteCenterDy[sprIdx] || 0) : 0;
-      const dyLocal = dyPx / (sprite[3] - sprite[1]) * (2 * h);
-      const noteTop = 1 - h + dyLocal, noteBottom = 1 + h + dyLocal;
+      const noteTop = 1 - h, noteBottom = 1 + h;
       let L = noteLeft, R = noteRight;
       if (cfg.mirror) { const t = -L; L = -R; R = t; }
       const z = zIndex(note.friction ? LAYER.TICK_NOTE : LAYER.BASE_NOTE, L + (R - L) / 2, y * (zScalar || 1));
