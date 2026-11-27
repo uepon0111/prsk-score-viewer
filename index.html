@@ -4893,7 +4893,7 @@ window.MMW_FX_PROFILES_1 = {"fx_lane_critical":{"n":"white","tf":{"p":[0.0,-0.01
              /* ---- 音源：ボーカル取得／速度に合わせた音声変換(WSOLA・音程維持)／再生。譜面時刻は音声クロックに同期 ---- */
              const MD='https://sekai-world.github.io/sekai-master-db-diff/',SC=new Map();
              const getCtx=()=>{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();gn=ctx.createGain();gn.gain.value=vl;gn.connect(ctx.destination)}return ctx};
-             let __latV=-1,__latT=0;const __lat=()=>{if(!ctx)return 0;const now=performance.now();if(now-__latT>1000){__latT=now;try{if(ctx.getOutputTimestamp){const ts=ctx.getOutputTimestamp();const aud=ts.contextTime+(now/1000-ts.outputTimestamp/1000);const est=ctx.currentTime-aud;if(isFinite(est)&&est>=-0.005&&est<1)__latV=__latV<0?est:__latV+(est-__latV)*0.5}}catch(e){}if(__latV<0)__latV=ctx.outputLatency||0}return __latV>=0?__latV:(ctx.outputLatency||0)};const aT=()=>B+(ctx.currentTime-__lat()-T0)*AR;
+             let __latV=-1,__latT=0;const __lat=()=>{if(!ctx)return 0;const now=performance.now();if(now-__latT>1000){__latT=now;let got=false;try{if(ctx.getOutputTimestamp){const ts=ctx.getOutputTimestamp();const aud=ts.contextTime+(now/1000-ts.outputTimestamp/1000);const est=ctx.currentTime-aud;if(isFinite(est)&&est>=-0.005&&est<1){__latV=__latV<0?est:__latV+(est-__latV)*0.5;got=true}}}catch(e){}if(!got)__latV=ctx.outputLatency||0}return __latV>=0?__latV:(ctx.outputLatency||0)};const aT=()=>B+(ctx.currentTime-__lat()-T0)*AR;
              const kill=()=>{const s=src;src=null;if(s){try{s.stop()}catch(e){}s.disconnect()}};
              const aStop=()=>{if(src)cur=Math.min(dur,aT());kill()};
              const aStart=()=>{
